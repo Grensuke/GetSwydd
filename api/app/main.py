@@ -1,7 +1,7 @@
 """FastAPI application entry point for GetSwydd."""
 from contextlib import asynccontextmanager
 from typing import List, Literal
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import (
@@ -9,11 +9,13 @@ from app.db import (
     deliver_to_test_employer,
     edit_draft,
     get_draft,
+    get_job_preferences,
     init_db,
     list_assisted_applications,
     list_test_submissions,
     report_assisted_submission,
     save_draft,
+    save_job_preferences,
 )
 from app.greenhouse import (
     REFRESH_LOCK,
@@ -26,6 +28,7 @@ from app.greenhouse import (
     imported_jobs,
     refresh_boards,
 )
+from app.job_search import filter_jobs, match_sort_key
 from app.matching import match_jobs
 from app.models import (
     ApplicationDraft,
@@ -34,6 +37,7 @@ from app.models import (
     HealthResponse,
     Job,
     JobListResponse,
+    JobSearchPreferences,
     ReportSubmissionRequest,
     SubmissionReceipt,
     SubmitDraftRequest,
@@ -105,7 +109,16 @@ def get_health() -> HealthResponse:
 
 
 @app.get("/api/v1/jobs", response_model=JobListResponse, tags=["Jobs"])
-def get_jobs(source: Literal["demo", "greenhouse", "all"] = "demo") -> JobListResponse:
+def get_jobs(
+    source: Literal["demo", "greenhouse", "all"] = "demo",
+    q: str = Query(default="", max_length=120),
+    location: str = Query(default="", max_length=120),
+    internships_only: bool | None = None,
+    use_preferences: bool = False,
+    sort: Literal["default", "match"] = "default",
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(default=None, ge=1, le=100),
+) -> JobListResponse:
     """Return sample jobs, imported jobs, or both using the locally confirmed profile."""
     jobs = list(SYNTHETIC_JOBS) if source in {"demo", "all"} else []
     if source in {"greenhouse", "all"}:
@@ -114,10 +127,26 @@ def get_jobs(source: Literal["demo", "greenhouse", "all"] = "demo") -> JobListRe
         except BoardConfigError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
 
-    return JobListResponse(
-        total=len(jobs),
-        jobs=match_jobs(jobs, get_confirmed_profile()),
-    )
+    preferences = get_job_preferences() if use_preferences else JobSearchPreferences()
+    filtered = filter_jobs(jobs, preferences, query=q, location=location, internships_only=internships_only)
+    profile = get_confirmed_profile()
+    end = None if limit is None else offset + limit
+    if sort == "match":
+        ordered = sorted(match_jobs(filtered, profile), key=match_sort_key)
+        page = ordered[offset:end]
+    else:
+        page = match_jobs(filtered[offset:end], profile)
+    return JobListResponse(total=len(filtered), jobs=page)
+
+
+@app.get("/api/v1/jobs/preferences", response_model=JobSearchPreferences, tags=["Jobs"])
+def job_preferences() -> JobSearchPreferences:
+    return get_job_preferences()
+
+
+@app.put("/api/v1/jobs/preferences", response_model=JobSearchPreferences, tags=["Jobs"])
+def update_job_preferences(preferences: JobSearchPreferences) -> JobSearchPreferences:
+    return save_job_preferences(preferences)
 
 
 @app.post("/api/v1/jobs/greenhouse/refresh", response_model=list[BoardRefresh], tags=["Jobs"])

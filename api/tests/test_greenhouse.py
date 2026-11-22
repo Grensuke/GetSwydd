@@ -229,3 +229,55 @@ def test_reported_submission_endpoint_rejects_demo_drafts(client):
         f"/api/v1/applications/drafts/{demo['id']}/reported-submission", json={"submitted": True}
     )
     assert response.status_code == 409
+
+
+def test_search_filters_saved_preferences_and_ranks_confirmed_skills(client, monkeypatch):
+    monkeypatch.setenv("GETSWYDD_GREENHOUSE_BOARDS", '{"example":"Example Employer"}')
+    jobs = [
+        posting(id=201, title="Backend Intern", location={"name": "Remote, India"}, content="JavaScript"),
+        posting(id=202, title="Python Backend Internship", location={"name": "Bengaluru, India"}, content="Python and SQL"),
+        posting(id=203, title="Backend Engineer", location={"name": "Bengaluru, India"}, content="Python and SQL"),
+        posting(id=204, title="Backend Internship", location={"name": "Indianapolis"}, content="Python and SQL"),
+        posting(id=205, title="Data Analyst Intern", location={"name": "Remote, India"}, content="SQL"),
+    ]
+    monkeypatch.setattr(greenhouse, "Client", lambda **opts: httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json={"jobs": jobs})), **opts
+    ))
+    resume = store_resume("Backend.pdf", b"example", "Python", ResumeFacts(skills=["Python"]))
+    confirm_resume(resume.id, ResumeReview(revision=0, facts=ResumeFacts(skills=["Python", "SQL"])))
+    assert client.post(REFRESH).json()[0]["count"] == 5
+
+    prefs_url = "/api/v1/jobs/preferences"
+    assert client.get(prefs_url).json() == {"role_keywords": [], "location_keywords": [], "internships_only": False}
+    prefs = {"role_keywords": ["Backend", "Data Analyst"], "location_keywords": ["India"], "internships_only": True}
+    assert client.put(prefs_url, json=prefs).json() == prefs
+    assert client.get(prefs_url).json() == prefs
+
+    def search(**options):
+        response = client.get(JOBS, params={"source": "greenhouse", **options})
+        assert response.status_code == 200
+        data = response.json()
+        return data["total"], [job["id"] for job in data["jobs"]]
+
+    assert search()[0] == 5
+    assert search(use_preferences=True) == (
+        3, ["greenhouse:example:201", "greenhouse:example:202", "greenhouse:example:205"]
+    )
+    assert search(use_preferences=True, sort="match", limit=1) == (3, ["greenhouse:example:202"])
+    assert search(use_preferences=True, sort="match", limit=1, offset=1) == (3, ["greenhouse:example:205"])
+    assert search(use_preferences=True, sort="match", offset=5) == (3, [])
+    assert search(use_preferences=True, location="REMOTE", q="Example Analyst") == (
+        1, ["greenhouse:example:205"]
+    )
+    assert search(use_preferences=True, internships_only=False)[0] == 4
+    assert client.put(prefs_url, json={}).status_code == 200
+    assert search(use_preferences=True)[0] == 5
+
+
+def test_job_search_rejects_invalid_settings(client):
+    prefs_url = "/api/v1/jobs/preferences"
+    assert client.put(prefs_url, json={"role_keywords": ["  "]}).status_code == 422
+    assert client.put(prefs_url, json={"location_keywords": ["..."]}).status_code == 422
+    assert client.put(prefs_url, json={"internships_only": "yes"}).status_code == 422
+    assert client.get(JOBS, params={"limit": 101}).status_code == 422
+    assert client.get(JOBS, params={"offset": -1}).status_code == 422

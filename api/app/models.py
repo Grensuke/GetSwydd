@@ -1,6 +1,7 @@
 """Data models for GetSwydd API."""
-from pydantic import BaseModel, Field, StrictBool
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints
 
 from app.resume_models import ProfileFact, ProfileSource
 
@@ -53,6 +54,18 @@ class JobListResponse(BaseModel):
     """Response model for job listing endpoint."""
     total: int = Field(..., description="Total number of jobs returned")
     jobs: List[Job] = Field(..., description="List of jobs")
+
+
+SearchTerm = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120, pattern=r"\w")]
+SearchTerms = Annotated[list[SearchTerm], Field(max_length=10)]
+
+
+class JobSearchPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role_keywords: SearchTerms = Field(default_factory=list)
+    location_keywords: SearchTerms = Field(default_factory=list)
+    internships_only: StrictBool = False
 
 
 class AnswerEvidence(BaseModel):

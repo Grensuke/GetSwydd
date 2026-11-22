@@ -422,3 +422,28 @@ Use `GET /api/v1/applications/assisted` to list the real drafts in the tracker. 
 ```
 
 Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, and a null submission time. Repeating a report returns the same timestamp, and reported drafts become read-only. The original test inbox endpoint accepts demo drafts. Employer communications for assisted drafts are limited to public form reads. The tracker records the user's account of completion.
+
+## 10. Job Search and Saved Preferences
+
+`GET /api/v1/jobs/preferences` reads the local user's saved preferences. `PUT` to the same URL replaces them. Empty lists mean any role or location. Send `{}` to reset the settings.
+
+```json
+{
+  "role_keywords": ["Python Developer", "Data Analyst"],
+  "location_keywords": ["India", "Remote"],
+  "internships_only": true
+}
+```
+
+`GET /api/v1/jobs` accepts the following optional parameters. The existing source filter remains available.
+
+| Parameter | Behavior |
+|---|---|
+| `q` | Requires all query words to appear in the job title or company name. |
+| `location` | Requires all query words to appear in the provider's location text. |
+| `use_preferences=true` | Applies saved role and location keywords. Words within each entry must all match. Entries in a category are alternatives, and the role and location categories both apply. |
+| `internships_only=true` | Keeps listings with Intern or Internship in the title, including plurals. An explicit value overrides the saved internship setting. |
+| `sort=match` | Orders jobs by confirmed skill count and then by the share of recognized skills confirmed. Ties preserve catalog order. |
+| `limit`, `offset` | Page size (1–100) and zero-based offset. `total` counts all filtered results before paging. |
+
+Example for the frontend's personalized listings view: `GET /api/v1/jobs?source=greenhouse&use_preferences=true&sort=match&limit=20`. Search uses the current local snapshot. Location text and skill matches help discovery and do not establish eligibility.

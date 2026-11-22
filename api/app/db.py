@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from app.models import ApplicationDraft, AssistedApplication, SubmissionReceipt
+from app.models import ApplicationDraft, AssistedApplication, JobSearchPreferences, SubmissionReceipt
 from app.services import apply_screening_answers
 
 DEFAULT_DB_PATH = str(Path(__file__).resolve().parent.parent / "getswydd.db")
@@ -71,8 +71,32 @@ def init_db(db_path: Optional[str] = None) -> None:
                     jobs_json TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS job_search_preferences (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    data_json TEXT NOT NULL
+                )
+            """)
     finally:
         conn.close()
+
+
+def get_job_preferences() -> JobSearchPreferences:
+    with closing(sqlite3.connect(get_db_path())) as conn:
+        row = conn.execute("SELECT data_json FROM job_search_preferences WHERE id = 1").fetchone()
+    return JobSearchPreferences.model_validate_json(row[0]) if row else JobSearchPreferences()
+
+
+def save_job_preferences(preferences: JobSearchPreferences) -> JobSearchPreferences:
+    with closing(sqlite3.connect(get_db_path())) as conn, conn:
+        conn.execute(
+            """
+            INSERT INTO job_search_preferences (id, data_json) VALUES (1, ?)
+            ON CONFLICT(id) DO UPDATE SET data_json = excluded.data_json
+            """,
+            (preferences.model_dump_json(),),
+        )
+    return preferences
 
 
 def save_draft(draft: ApplicationDraft, db_path: Optional[str] = None) -> None:
