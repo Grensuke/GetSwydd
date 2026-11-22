@@ -37,9 +37,11 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 - [x] Record a submission in the local test employer inbox and show its receipt in the tracker.
 
 ### Phase 3: Resume Management & Explainable Matching
-- [ ] PDF/DOCX resume upload and parsing.
-- [ ] Resume variant recommendation and gap analysis.
-- [ ] Match explainability badges ("Why this matches your background").
+- [x] Upload multiple text-based PDF and DOCX resumes and review extracted facts.
+- [x] Merge confirmed facts into a local profile with resume sources.
+- [x] Match sample job skills against the confirmed profile and show evidence, gaps, and checks that need confirmation.
+- [x] Recommend the reviewed resume that supports the most listed skills.
+- [ ] Add role-specific resume improvement suggestions.
 
 ### Phase 4: Integrations & Job Tracking
 - [ ] Authorized job board and employer integrations.

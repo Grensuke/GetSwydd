@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiUrl } from "./application-drafts";
+import { apiUrl } from "./api-client";
 import DraftApplicationButton from "./draft-application-button";
+import JobMatchSummary, { type JobMatch } from "./job-match";
 
 interface Job {
   id: string;
@@ -14,6 +15,7 @@ interface Job {
   recommended_resume: string;
   description?: string;
   posted_date?: string;
+  match?: JobMatch | null;
 }
 
 interface JobListResponse {
@@ -97,6 +99,9 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link href="/resumes" className="text-xs font-medium text-indigo-700 hover:underline">
+              Resumes
+            </Link>
             <Link href="/applications" className="text-xs font-medium text-indigo-700 hover:underline">
               Application tracker
             </Link>
@@ -347,17 +352,17 @@ export default function Home() {
                       {job.eligibility}
                     </p>
                   </div>
+                  {job.match && <JobMatchSummary match={job.match} />}
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  {/* Recommended Resume */}
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-medium text-slate-500">
-                      Recommended Resume:
+                      Test draft resume
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-mono font-medium">
+                    <span className="inline-flex min-w-0 items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-mono font-medium">
                       <svg
-                        className="w-3.5 h-3.5 text-indigo-500"
+                        className="w-3.5 h-3.5 shrink-0 text-indigo-500"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -369,7 +374,7 @@ export default function Home() {
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
                       </svg>
-                      {job.recommended_resume}
+                      <span className="break-all">{job.recommended_resume}</span>
                     </span>
                   </div>
 

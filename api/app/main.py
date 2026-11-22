@@ -13,6 +13,7 @@ from app.db import (
     list_test_submissions,
     save_draft,
 )
+from app.matching import match_jobs
 from app.models import (
     ApplicationDraft,
     DraftCreateRequest,
@@ -24,6 +25,8 @@ from app.models import (
     UpdateAnswersRequest,
 )
 from app.services import prepare_draft_for_job
+from app.resume_routes import router as resume_router
+from app.resume_store import get_confirmed_profile
 
 
 @asynccontextmanager
@@ -53,6 +56,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(resume_router)
 
 # Synthetic job catalog
 SYNTHETIC_JOBS: List[Job] = [
@@ -87,10 +91,10 @@ def get_health() -> HealthResponse:
 
 @app.get("/api/v1/jobs", response_model=JobListResponse, tags=["Jobs"])
 def get_jobs() -> JobListResponse:
-    """Return synthetic job opportunities validated via Pydantic."""
+    """Return sample jobs with explanations based on the locally confirmed profile."""
     return JobListResponse(
         total=len(SYNTHETIC_JOBS),
-        jobs=SYNTHETIC_JOBS,
+        jobs=match_jobs(SYNTHETIC_JOBS, get_confirmed_profile()),
     )
 
 

@@ -2,12 +2,32 @@
 from pydantic import BaseModel, Field, StrictBool
 from typing import Dict, List, Literal, Optional
 
+from app.resume_models import ProfileFact, ProfileSource
+
 
 class HealthResponse(BaseModel):
     """Response model for service health check."""
     status: str = Field(default="healthy", description="Current service health status")
     service: str = Field(default="getswydd-api", description="Service name")
     version: str = Field(default="0.1.0", description="API version")
+
+
+class RequirementMatch(BaseModel):
+    label: str
+    status: Literal["evidence_found", "no_confirmed_evidence", "needs_confirmation"]
+    evidence: list[ProfileFact] = Field(default_factory=list)
+
+
+class ResumeRecommendation(ProfileSource):
+    covered_requirements: list[str]
+
+
+class JobMatch(BaseModel):
+    has_confirmed_profile: bool
+    requirements: list[RequirementMatch]
+    matched_skills: int
+    total_skills: int
+    recommended_resume: ResumeRecommendation | None = None
 
 
 class Job(BaseModel):
@@ -17,9 +37,10 @@ class Job(BaseModel):
     company: str = Field(..., description="Hiring company name")
     location: str = Field(..., description="Job location or Remote status")
     eligibility: str = Field(..., description="Eligibility criteria or required background")
-    recommended_resume: str = Field(..., description="Recommended resume profile or file to use")
+    recommended_resume: str = Field(..., description="Sample resume used in the test application workflow")
     description: Optional[str] = Field(default=None, description="Brief description of the role")
     posted_date: Optional[str] = Field(default=None, description="Date posted in ISO format")
+    match: JobMatch | None = None
 
 
 class JobListResponse(BaseModel):

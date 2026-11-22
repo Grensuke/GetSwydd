@@ -46,6 +46,18 @@ def init_db(db_path: Optional[str] = None) -> None:
                     submitted_at TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS resumes (
+                    id TEXT PRIMARY KEY,
+                    filename TEXT NOT NULL,
+                    uploaded_at TEXT NOT NULL,
+                    original_file BLOB NOT NULL,
+                    extracted_text TEXT NOT NULL,
+                    suggested_facts TEXT NOT NULL,
+                    confirmed_facts TEXT,
+                    revision INTEGER NOT NULL DEFAULT 0
+                )
+            """)
     finally:
         conn.close()
 

@@ -267,3 +267,40 @@ Use the draft's exact `updated_at` value. The server stores the approved payload
 Repeated requests for the same draft version return the original receipt. The endpoint returns `404` for an unknown draft, `409` for a stale version or incomplete draft, and `422` without explicit approval. Draft responses include `submission`, which is null until the receipt exists. Updates to submitted drafts return `409`.
 
 `GET /api/v1/applications` returns the confirmed test receipts in newest-first order for the application tracker.
+
+## 5. Resumes and Confirmed Profile
+
+| Endpoint | Request and response |
+|---|---|
+| `POST /api/v1/resumes` | Upload a multipart `file` field with a PDF or DOCX up to 5 MB. Returns the resume detail with `201`. Unsupported formats return `415`, oversize files return `413`, and unreadable files return `422`. |
+| `GET /api/v1/resumes` | Lists uploaded resumes with their IDs, filenames, upload timestamps, and review status. |
+| `GET /api/v1/resumes/{id}` | Returns a resume's extracted text, suggested facts, confirmed facts (initially `null`), and review revision. |
+| `PUT /api/v1/resumes/{id}/review` | Takes the current `revision` and the complete reviewed `facts` object, then returns the updated resume detail. Returns `409` if the revision is stale. |
+| `GET /api/v1/profile` | Returns `facts`, an array of merged profile facts with `category`, `value`, and `sources`. Each source includes its resume ID and filename. |
+
+The review payload uses five groups of strings. Omit a group or send an empty array to confirm zero facts for that group.
+
+```json
+{
+  "revision": 0,
+  "facts": {
+    "skills": ["Python", "SQL"],
+    "education": ["B.Tech Computer Science"],
+    "experience": [],
+    "projects": ["Built a job tracker"],
+    "certifications": []
+  }
+}
+```
+
+Suggestions come from text under common resume section headings. Reviewers can correct or remove any suggestion before confirming it. The profile merges equal facts within each category without regard to case or repeated spaces and retains every confirmed source. Files and profile data are stored locally in SQLite. The sample application workflow continues to use its synthetic candidate.
+
+## 6. Explainable Job Matching
+
+`GET /api/v1/jobs` includes a `match` object for each sample role. It contains:
+
+- `has_confirmed_profile`, `matched_skills`, and `total_skills`. The counts cover skill groups only. For an alternative such as FastAPI or Flask, either skill supports the group once.
+- `requirements`, with a label, status, and confirmed evidence and resume sources. Status is `evidence_found`, `no_confirmed_evidence`, or `needs_confirmation`. Student or recent-graduate status and work authorization need confirmation and do not enter the counts.
+- `recommended_resume`, with the uploaded resume ID, filename, and the skill requirements that document supports. The reviewed resume with the most covered groups wins. Ties use filename and then ID. An empty match yields `null`.
+
+Rules use explicit skill names and aliases from confirmed profile facts, with case and whitespace normalized. The sample catalog order and top-level `recommended_resume` field are preserved. That top-level field supplies the synthetic test draft's filename. Personal resume recommendations are in `match.recommended_resume`.
