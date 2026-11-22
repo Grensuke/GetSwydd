@@ -49,3 +49,13 @@ class ProfileFact(BaseModel):
 
 class ConfirmedProfile(BaseModel):
     facts: list[ProfileFact]
+
+
+class ApplicationDetails(BaseModel):
+    """Application details explicitly saved by the local candidate."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    candidate_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)] | None = None
+    availability: FactText | None = None
+    uk_work_authorization: Literal["authorized", "not_authorized"] | None = None

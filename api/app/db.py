@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from app.models import ApplicationDraft, SubmissionReceipt
+from app.models import ApplicationDraft, AssistedApplication, SubmissionReceipt
 from app.services import apply_screening_answers
 
 DEFAULT_DB_PATH = str(Path(__file__).resolve().parent.parent / "getswydd.db")
@@ -56,6 +56,19 @@ def init_db(db_path: Optional[str] = None) -> None:
                     suggested_facts TEXT NOT NULL,
                     confirmed_facts TEXT,
                     revision INTEGER NOT NULL DEFAULT 0
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS application_details (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    data_json TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS greenhouse_boards (
+                    token TEXT PRIMARY KEY,
+                    fetched_at TEXT NOT NULL,
+                    jobs_json TEXT NOT NULL
                 )
             """)
     finally:
@@ -126,18 +139,22 @@ def edit_draft(draft_id: str, answers: dict[str, str]) -> Optional[ApplicationDr
         draft = _read_draft(conn, draft_id)
         if draft is None:
             return None
-        if draft.submission:
+        if draft.submission or draft.reported_submitted_at:
             raise DraftConflict("This draft has already been submitted.")
         draft = apply_screening_answers(draft, answers)
-        conn.execute(
-            """
-            UPDATE application_drafts
-            SET ready_for_review = ?, data_json = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (draft.ready_for_review, draft.model_dump_json(), draft.updated_at, draft.id),
-        )
+        _update_draft(conn, draft)
         return draft
+
+
+def _update_draft(conn: sqlite3.Connection, draft: ApplicationDraft) -> None:
+    conn.execute(
+        """
+        UPDATE application_drafts
+        SET ready_for_review = ?, data_json = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (draft.ready_for_review, draft.model_dump_json(), draft.updated_at, draft.id),
+    )
 
 
 def deliver_to_test_employer(draft_id: str, approved_version: str) -> Optional[SubmissionReceipt]:
@@ -147,6 +164,8 @@ def deliver_to_test_employer(draft_id: str, approved_version: str) -> Optional[S
         draft = _read_draft(conn, draft_id)
         if draft is None:
             return None
+        if draft.mode != "demo" or draft.resume_id is not None:
+            raise DraftConflict("The test inbox accepts demo drafts.")
         if draft.updated_at != approved_version:
             raise DraftConflict("This draft changed. Reload it and review the saved answers again.")
         if draft.submission:
@@ -179,3 +198,48 @@ def list_test_submissions() -> list[SubmissionReceipt]:
             "SELECT receipt_json FROM test_employer_inbox ORDER BY submitted_at DESC, draft_id"
         )
         return [SubmissionReceipt.model_validate_json(row[0]) for row in rows]
+
+
+def _assisted_summary(draft: ApplicationDraft) -> AssistedApplication:
+    if draft.mode != "assisted" or draft.apply_url is None:
+        raise DraftConflict("Only assisted drafts can be marked as submitted by the user.")
+    return AssistedApplication(
+        draft_id=draft.id,
+        job_id=draft.job_id,
+        job_title=draft.job_title,
+        company=draft.company,
+        selected_resume=draft.selected_resume,
+        apply_url=draft.apply_url,
+        status="submitted" if draft.reported_submitted_at else "draft",
+        status_source="user_reported" if draft.reported_submitted_at else "getswydd",
+        reported_submitted_at=draft.reported_submitted_at,
+        updated_at=draft.updated_at,
+    )
+
+
+def report_assisted_submission(draft_id: str) -> AssistedApplication | None:
+    with closing(sqlite3.connect(get_db_path())) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        draft = _read_draft(conn, draft_id)
+        if draft is None:
+            return None
+        current = _assisted_summary(draft)
+        if current.status == "submitted":
+            return current
+        now = datetime.now(timezone.utc).isoformat()
+        draft.reported_submitted_at = now
+        draft.updated_at = now
+        _update_draft(conn, draft)
+        return _assisted_summary(draft)
+
+
+def list_assisted_applications() -> list[AssistedApplication]:
+    with closing(sqlite3.connect(get_db_path())) as conn:
+        rows = conn.execute(
+            """
+            SELECT data_json FROM application_drafts
+            WHERE json_extract(data_json, '$.mode') = 'assisted'
+            ORDER BY updated_at DESC, id
+            """
+        )
+        return [_assisted_summary(ApplicationDraft.model_validate_json(row[0])) for row in rows]

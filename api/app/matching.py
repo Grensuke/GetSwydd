@@ -1,4 +1,5 @@
 """Compare declared job requirements with confirmed resume facts."""
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -19,24 +20,29 @@ class JobRequirements:
 
 
 PYTHON = SkillRequirement("Python", ("python", "python 3", "python3", "python (pandas)", "python pandas"))
+WEB_FRAMEWORK = SkillRequirement("FastAPI or Flask", ("fastapi", "flask"))
+SQL = SkillRequirement("SQL", ("sql", "structured query language"))
+PANDAS = SkillRequirement("pandas", ("pandas", "python (pandas)", "python pandas"))
+DATA_VISUALIZATION = SkillRequirement(
+    "Data visualization",
+    ("data visualization", "data visualisation", "matplotlib", "seaborn", "plotly", "tableau", "power bi"),
+)
+
 REQUIREMENTS: dict[str, JobRequirements] = {
     "job-py-001": JobRequirements(
         skills=(
             PYTHON,
-            SkillRequirement("FastAPI or Flask", ("fastapi", "flask")),
+            WEB_FRAMEWORK,
             SkillRequirement("Git", ("git", "git version control", "git workflow")),
         ),
         manual_checks=("Current student or recent graduate", "UK work authorization"),
     ),
     "job-da-002": JobRequirements(
         skills=(
-            SkillRequirement("SQL", ("sql", "structured query language")),
+            SQL,
             PYTHON,
-            SkillRequirement("pandas", ("pandas", "python (pandas)", "python pandas")),
-            SkillRequirement(
-                "Data visualization",
-                ("data visualization", "data visualisation", "matplotlib", "seaborn", "plotly", "tableau", "power bi"),
-            ),
+            PANDAS,
+            DATA_VISUALIZATION,
             SkillRequirement(
                 "Communication",
                 ("communication", "communication skills", "written communication", "verbal communication"),
@@ -46,17 +52,38 @@ REQUIREMENTS: dict[str, JobRequirements] = {
     ),
 }
 
+DESCRIPTION_SKILLS = (
+    PYTHON, SQL, PANDAS,
+    *(SkillRequirement(name, (name.casefold(),)) for name in (
+        "FastAPI", "Flask", "Git", "Matplotlib", "Seaborn", "Plotly", "Tableau", "Power BI",
+        "Java", "JavaScript", "TypeScript", "React", "Node.js", "Docker", "Kubernetes",
+    )),
+)
+DESCRIPTION_PATTERNS = [
+    (skill, re.compile(r"(?<!\w)(?:" + "|".join(map(re.escape, skill.accepted_names)) + r")(?!\w)"))
+    for skill in DESCRIPTION_SKILLS
+]
+
+
+def normalize_skill(value: str) -> str:
+    return " ".join(value.casefold().split())
+
 
 def match_jobs(jobs: list[Job], profile: ConfirmedProfile) -> list[Job]:
     confirmed_skills: defaultdict[str, list[ProfileFact]] = defaultdict(list)
     for fact in profile.facts:
         if fact.category == "skills":
-            name = " ".join(fact.value.casefold().split())
+            name = normalize_skill(fact.value)
             confirmed_skills[name].append(fact)
 
     results = []
     for job in jobs:
         rules = REQUIREMENTS.get(job.id)
+        if job.source == "greenhouse":
+            description = normalize_skill(job.description or "")
+            mentioned = tuple(skill for skill, pattern in DESCRIPTION_PATTERNS if pattern.search(description))
+            if mentioned:
+                rules = JobRequirements(skills=mentioned)
         if rules is None:
             results.append(job)
             continue
@@ -97,6 +124,7 @@ def match_jobs(jobs: list[Job], profile: ConfirmedProfile) -> list[Job]:
             matched_skills=matched_skills,
             total_skills=len(rules.skills),
             recommended_resume=recommendation,
+            scope="description_mentions" if job.source == "greenhouse" else "listed_requirements",
         )
         results.append(job.model_copy(update={"match": match}))
     return results

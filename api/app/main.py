@@ -1,6 +1,6 @@
 """FastAPI application entry point for GetSwydd."""
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Literal
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,23 +10,38 @@ from app.db import (
     edit_draft,
     get_draft,
     init_db,
+    list_assisted_applications,
     list_test_submissions,
+    report_assisted_submission,
     save_draft,
+)
+from app.greenhouse import (
+    REFRESH_LOCK,
+    BoardConfigError,
+    BoardRefresh,
+    PostingClosed,
+    configured_boards,
+    fetch_assisted_form,
+    find_imported_job,
+    imported_jobs,
+    refresh_boards,
 )
 from app.matching import match_jobs
 from app.models import (
     ApplicationDraft,
+    AssistedApplication,
     DraftCreateRequest,
     HealthResponse,
     Job,
     JobListResponse,
+    ReportSubmissionRequest,
     SubmissionReceipt,
     SubmitDraftRequest,
     UpdateAnswersRequest,
 )
 from app.services import prepare_draft_for_job
 from app.resume_routes import router as resume_router
-from app.resume_store import get_confirmed_profile
+from app.resume_store import get_application_details, get_confirmed_profile, get_resume
 
 
 @asynccontextmanager
@@ -90,12 +105,36 @@ def get_health() -> HealthResponse:
 
 
 @app.get("/api/v1/jobs", response_model=JobListResponse, tags=["Jobs"])
-def get_jobs() -> JobListResponse:
-    """Return sample jobs with explanations based on the locally confirmed profile."""
+def get_jobs(source: Literal["demo", "greenhouse", "all"] = "demo") -> JobListResponse:
+    """Return sample jobs, imported jobs, or both using the locally confirmed profile."""
+    jobs = list(SYNTHETIC_JOBS) if source in {"demo", "all"} else []
+    if source in {"greenhouse", "all"}:
+        try:
+            jobs.extend(imported_jobs(configured_boards()))
+        except BoardConfigError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+
     return JobListResponse(
-        total=len(SYNTHETIC_JOBS),
-        jobs=match_jobs(SYNTHETIC_JOBS, get_confirmed_profile()),
+        total=len(jobs),
+        jobs=match_jobs(jobs, get_confirmed_profile()),
     )
+
+
+@app.post("/api/v1/jobs/greenhouse/refresh", response_model=list[BoardRefresh], tags=["Jobs"])
+def refresh_greenhouse_jobs() -> list[BoardRefresh]:
+    """Refresh configured public job feeds and return their individual results."""
+    try:
+        boards = configured_boards()
+    except BoardConfigError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    if not boards:
+        return []
+    if not REFRESH_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A Greenhouse refresh is already running.")
+    try:
+        return refresh_boards(boards)
+    finally:
+        REFRESH_LOCK.release()
 
 
 @app.post(
@@ -110,14 +149,47 @@ def create_draft(payload: DraftCreateRequest) -> ApplicationDraft:
     Pre-populates answers only from verified facts; missing required questions
     are flagged for user input without guessing.
     """
-    job = next((j for j in SYNTHETIC_JOBS if j.id == payload.job_id), None)
+    if payload.job_id.startswith("greenhouse:"):
+        try:
+            job = find_imported_job(payload.job_id, configured_boards())
+        except BoardConfigError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+    else:
+        job = next((j for j in SYNTHETIC_JOBS if j.id == payload.job_id), None)
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job not found with ID '{payload.job_id}'",
         )
 
-    draft = prepare_draft_for_job(job)
+    assisted = job.application_mode == "assisted"
+    if assisted and payload.resume_id is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Select a reviewed resume first.")
+
+    resume = None
+    details = None
+    if payload.resume_id is not None:
+        resume = get_resume(payload.resume_id)
+        if resume is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found.")
+        if resume.confirmed_facts is None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review the selected resume first.")
+        details = get_application_details()
+        if details.candidate_name is None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Confirm your candidate name first.")
+
+    form = None
+    if assisted:
+        try:
+            form = fetch_assisted_form(job)
+        except PostingClosed as error:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+    draft = prepare_draft_for_job(
+        job, resume=resume, details=details,
+        assisted_questions=form.questions if form else None,
+        form_status=form.status if form else None,
+    )
     save_draft(draft)
     return draft
 
@@ -198,6 +270,30 @@ def submit_draft(draft_id: str, payload: SubmitDraftRequest) -> SubmissionReceip
 def list_submissions() -> list[SubmissionReceipt]:
     """List confirmed local test submissions for the tracker."""
     return list_test_submissions()
+
+
+@app.get("/api/v1/applications/assisted", response_model=list[AssistedApplication], tags=["Applications"])
+def list_assisted_drafts() -> list[AssistedApplication]:
+    """List real assisted drafts and user-reported submissions."""
+    return list_assisted_applications()
+
+
+@app.put(
+    "/api/v1/applications/drafts/{draft_id}/reported-submission",
+    response_model=AssistedApplication,
+    tags=["Applications"],
+)
+def record_reported_submission(draft_id: str, payload: ReportSubmissionRequest) -> AssistedApplication:
+    """Record the user's report of submission on the employer's site."""
+    if not payload.submitted:
+        raise HTTPException(status_code=422, detail="Confirm that you submitted on the employer's site.")
+    try:
+        result = report_assisted_submission(draft_id)
+    except DraftConflict as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application draft not found.")
+    return result
 
 
 if __name__ == "__main__":

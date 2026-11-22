@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from app.db import get_db_path
 from app.resume_models import (
+    ApplicationDetails,
     ConfirmedProfile,
     ProfileFact,
     ProfileSource,
@@ -105,3 +106,21 @@ def get_confirmed_profile() -> ConfirmedProfile:
                     if source not in facts[key].sources:
                         facts[key].sources.append(source)
     return ConfirmedProfile(facts=list(facts.values()))
+
+
+def get_application_details() -> ApplicationDetails:
+    with closing(_connect()) as conn:
+        row = conn.execute("SELECT data_json FROM application_details WHERE id = 1").fetchone()
+    return ApplicationDetails.model_validate_json(row["data_json"]) if row else ApplicationDetails()
+
+
+def save_application_details(details: ApplicationDetails) -> ApplicationDetails:
+    with closing(_connect()) as conn, conn:
+        conn.execute(
+            """
+            INSERT INTO application_details (id, data_json) VALUES (1, ?)
+            ON CONFLICT(id) DO UPDATE SET data_json = excluded.data_json
+            """,
+            (details.model_dump_json(),),
+        )
+    return details
