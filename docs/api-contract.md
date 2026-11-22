@@ -252,5 +252,18 @@ sequenceDiagram
 
 ---
 
-## 4. Next Milestone: Approved Submission
-Once `ready_for_review` is `true`, the candidate reviews the assembled application package (selected resume file + answers with provenance). Dispatch will occur strictly upon explicit user approval to a local test employer harness (`POST /api/v1/applications/{draft_id}/submit`).
+## 4. Approved Test Submission
+Send `POST /api/v1/applications/drafts/{draft_id}/submit` after the candidate has reviewed the saved answers and selected resume name and explicitly approved that draft version.
+
+```json
+{
+  "approved": true,
+  "draft_updated_at": "2026-11-22T10:18:30.000000+00:00"
+}
+```
+
+Use the draft's exact `updated_at` value. The server stores the approved payload in the local test employer's SQLite inbox and returns `200 OK` with a receipt. The receipt contains `id`, `draft_id`, `job_title`, `company`, `selected_resume`, `approved_updated_at`, `submitted_at`, `destination` (`local_test_employer`), and `status` (`submitted`). This sends sample data only to the local test inbox.
+
+Repeated requests for the same draft version return the original receipt. The endpoint returns `404` for an unknown draft, `409` for a stale version or incomplete draft, and `422` without explicit approval. Draft responses include `submission`, which is null until the receipt exists. Updates to submitted drafts return `409`.
+
+`GET /api/v1/applications` returns the confirmed test receipts in newest-first order for the application tracker.

@@ -4,16 +4,26 @@ from typing import List
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db import get_draft, init_db, save_draft, update_draft
+from app.db import (
+    DraftConflict,
+    deliver_to_test_employer,
+    edit_draft,
+    get_draft,
+    init_db,
+    list_test_submissions,
+    save_draft,
+)
 from app.models import (
     ApplicationDraft,
     DraftCreateRequest,
     HealthResponse,
     Job,
     JobListResponse,
+    SubmissionReceipt,
+    SubmitDraftRequest,
     UpdateAnswersRequest,
 )
-from app.services import apply_screening_answers, prepare_draft_for_job
+from app.services import prepare_draft_for_job
 
 
 @asynccontextmanager
@@ -139,23 +149,51 @@ def update_screening_answers(draft_id: str, payload: UpdateAnswersRequest) -> Ap
     Update screening question answers for an application draft.
     Marks updated answers with source 'user_supplied' and updates review readiness.
     """
-    draft = get_draft(draft_id)
-    if not draft:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Application draft not found with ID '{draft_id}'",
-        )
-
     try:
-        updated = apply_screening_answers(draft, payload.answers)
+        updated = edit_draft(draft_id, payload.answers)
+    except DraftConflict as err:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(err)) from err
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err),
+        ) from err
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Application draft not found with ID '{draft_id}'",
         )
-
-    update_draft(updated)
     return updated
+
+
+@app.post(
+    "/api/v1/applications/drafts/{draft_id}/submit",
+    response_model=SubmissionReceipt,
+    tags=["Applications"],
+)
+def submit_draft(draft_id: str, payload: SubmitDraftRequest) -> SubmissionReceipt:
+    """Deliver the exact approved draft to the local test employer."""
+    if not payload.approved:
+        raise HTTPException(
+            status_code=422,
+            detail="Explicit approval is required.",
+        )
+    try:
+        receipt = deliver_to_test_employer(draft_id, payload.draft_updated_at)
+    except DraftConflict as err:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(err)) from err
+    if receipt is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Application draft not found with ID '{draft_id}'",
+        )
+    return receipt
+
+
+@app.get("/api/v1/applications", response_model=list[SubmissionReceipt], tags=["Applications"])
+def list_submissions() -> list[SubmissionReceipt]:
+    """List confirmed local test submissions for the tracker."""
+    return list_test_submissions()
 
 
 if __name__ == "__main__":

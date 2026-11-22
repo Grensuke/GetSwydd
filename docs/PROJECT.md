@@ -23,18 +23,18 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 
 ## Product Roadmap
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation
 - [x] Next.js frontend with Tailwind CSS and App Router.
 - [x] FastAPI backend with Pydantic validation and CORS configuration.
 - [x] Synthetic job catalog (Python Developer Internship, Data Analyst Internship).
 - [x] Local developer documentation, API contract, and smoke tests.
 
 ### Phase 2: Application Preparation & Local Submissions
-- [ ] Select a job to initiate draft application.
-- [ ] Profile fact store (skills, education, verified experiences).
-- [ ] Missing answer prompt workflow.
-- [ ] Interactive draft review UI.
-- [ ] Mock submission to a local test employer endpoint.
+- [x] Select a job to start an application draft.
+- [x] Prefill answers from a synthetic candidate's verified facts.
+- [x] Ask for missing answers and save the completed draft for review.
+- [x] Accept explicit approval for the reviewed draft version.
+- [x] Record a submission in the local test employer inbox and show its receipt in the tracker.
 
 ### Phase 3: Resume Management & Explainable Matching
 - [ ] PDF/DOCX resume upload and parsing.

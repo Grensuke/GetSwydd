@@ -1,6 +1,6 @@
 """Data models for GetSwydd API."""
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from pydantic import BaseModel, Field, StrictBool
+from typing import Dict, List, Literal, Optional
 
 
 class HealthResponse(BaseModel):
@@ -47,6 +47,23 @@ class UpdateAnswersRequest(BaseModel):
     answers: Dict[str, str] = Field(..., description="Mapping of question id to answer text")
 
 
+class SubmitDraftRequest(BaseModel):
+    approved: StrictBool
+    draft_updated_at: str = Field(min_length=1)
+
+
+class SubmissionReceipt(BaseModel):
+    id: str
+    draft_id: str
+    job_title: str
+    company: str
+    selected_resume: str
+    approved_updated_at: str
+    submitted_at: str
+    destination: Literal["local_test_employer"] = "local_test_employer"
+    status: Literal["submitted"] = "submitted"
+
+
 class ApplicationDraft(BaseModel):
     """Model representing an application draft in progress or ready for review."""
     id: str = Field(..., description="Unique draft identifier")
@@ -60,3 +77,4 @@ class ApplicationDraft(BaseModel):
     ready_for_review: bool = Field(..., description="True if all required questions have answers")
     created_at: str = Field(..., description="Creation timestamp in ISO 8601")
     updated_at: str = Field(..., description="Last update timestamp in ISO 8601")
+    submission: Optional[SubmissionReceipt] = None

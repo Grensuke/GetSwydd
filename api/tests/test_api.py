@@ -1,4 +1,6 @@
 """Tests for GetSwydd FastAPI backend."""
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -8,8 +10,9 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def ensure_db():
+def ensure_db(tmp_path, monkeypatch):
     """Ensure database schema is ready for tests."""
+    monkeypatch.setenv("GETSWYDD_DB_PATH", str(tmp_path / "test.db"))
     init_db()
 
 
@@ -191,3 +194,50 @@ def test_sqlite_persistence():
     fetch_res = client.get(f"/api/v1/applications/drafts/{draft_id}")
     assert fetch_res.status_code == 200
     assert fetch_res.json()["id"] == draft_id
+
+
+def test_cannot_submit_without_explicit_approval_or_required_answers():
+    draft = client.post("/api/v1/applications/drafts", json={"job_id": "job-py-001"}).json()
+    submit_url = f"/api/v1/applications/drafts/{draft['id']}/submit"
+    approval = {"approved": True, "draft_updated_at": draft["updated_at"]}
+
+    assert client.post(submit_url, json={"draft_updated_at": draft["updated_at"]}).status_code == 422
+    assert client.post(submit_url, json={**approval, "approved": False}).status_code == 422
+    assert client.post(submit_url, json=approval).status_code == 409
+    assert client.get("/api/v1/applications").json() == []
+
+
+def test_edit_invalidates_approval_for_previous_version():
+    draft = client.post("/api/v1/applications/drafts", json={"job_id": "job-da-002"}).json()
+    draft_url = f"/api/v1/applications/drafts/{draft['id']}"
+    edited = client.patch(
+        f"{draft_url}/answers", json={"answers": {"sql_experience": "SQL coursework"}}
+    )
+    assert edited.status_code == 200
+    assert edited.json()["updated_at"] != draft["updated_at"]
+    response = client.post(
+        f"{draft_url}/submit", json={"approved": True, "draft_updated_at": draft["updated_at"]}
+    )
+    assert response.status_code == 409
+    assert client.get("/api/v1/applications").json() == []
+
+
+def test_concurrent_submissions_return_one_receipt_and_freeze_the_draft():
+    draft = client.post("/api/v1/applications/drafts", json={"job_id": "job-da-002"}).json()
+    draft_url = f"/api/v1/applications/drafts/{draft['id']}"
+    payload = {"approved": True, "draft_updated_at": draft["updated_at"]}
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(client.post, f"{draft_url}/submit", json=payload)
+        second = executor.submit(client.post, f"{draft_url}/submit", json=payload)
+        responses = [first.result(), second.result()]
+
+    assert [response.status_code for response in responses] == [200, 200]
+    receipt = responses[0].json()
+    assert responses[1].json() == receipt
+    assert receipt["destination"] == "local_test_employer"
+    assert receipt["approved_updated_at"] == draft["updated_at"]
+    assert client.get(draft_url).json()["submission"] == receipt
+    assert client.get("/api/v1/applications").json() == [receipt]
+    assert client.patch(
+        f"{draft_url}/answers", json={"answers": {"sql_experience": "Edited after submission"}}
+    ).status_code == 409

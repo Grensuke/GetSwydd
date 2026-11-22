@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiUrl } from "./application-drafts";
+import DraftApplicationButton from "./draft-application-button";
 
 interface Job {
   id: string;
@@ -24,9 +27,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
   useEffect(() => {
     let active = true;
@@ -70,7 +70,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [apiUrl, refreshTrigger]);
+  }, [refreshTrigger]);
 
   const handleRefresh = () => {
     setLoading(true);
@@ -97,6 +97,9 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link href="/applications" className="text-xs font-medium text-indigo-700 hover:underline">
+              Application tracker
+            </Link>
             <span className="text-xs text-slate-500 hidden md:inline">
               Backend: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{apiUrl}</code>
             </span>
@@ -370,13 +373,7 @@ export default function Home() {
                     </span>
                   </div>
 
-                  <button
-                    disabled
-                    className="self-end sm:self-auto px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-medium rounded-md border border-slate-200 cursor-not-allowed"
-                    title="Application preparation milestone coming in Phase 2"
-                  >
-                    Draft Application (Phase 2)
-                  </button>
+                  <DraftApplicationButton jobId={job.id} />
                 </div>
               </article>
             ))}
