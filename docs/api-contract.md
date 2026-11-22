@@ -304,3 +304,121 @@ Suggestions come from text under common resume section headings. Reviewers can c
 - `recommended_resume`, with the uploaded resume ID, filename, and the skill requirements that document supports. The reviewed resume with the most covered groups wins. Ties use filename and then ID. An empty match yields `null`.
 
 Rules use explicit skill names and aliases from confirmed profile facts, with case and whitespace normalized. The sample catalog order and top-level `recommended_resume` field are preserved. That top-level field supplies the synthetic test draft's filename. Personal resume recommendations are in `match.recommended_resume`.
+
+## 7. Personalized Application Drafts
+
+Use `GET /api/v1/profile/application-details` to load the candidate's saved application details. Use `PUT` on the same path to confirm the complete set. Omitted fields and explicit `null` both clear a field. A name is required to start a personalized draft. Availability and UK work authorization may be left unknown.
+
+```json
+{
+  "candidate_name": "Casey Doe",
+  "availability": "June, 20 hours per week",
+  "uk_work_authorization": null
+}
+```
+
+`uk_work_authorization` accepts `authorized`, `not_authorized`, or `null`.
+
+To start a personalized draft, send the selected upload's ID in the existing create request:
+
+```json
+{
+  "job_id": "job-py-001",
+  "resume_id": "resume-<id from GET /api/v1/resumes>"
+}
+```
+
+The API returns `201` with the existing draft fields plus:
+
+- `mode: "personalized"` and `resume_id` identifying the chosen upload. `candidate_name` and `selected_resume` contain the name and filename shown to the candidate.
+- Each `screening_questions` item includes an `evidence` array. Resume-based entries have `value` and `resume: { "resume_id": "...", "filename": "..." }`. Confirmed profile entries have `value` and `profile_field` (`availability` or `uk_work_authorization`). Unanswered questions return `answer: null` and an empty `evidence` array.
+- `missing_required_questions` and `ready_for_review` remain the controls for the review screen. A user edit has `source: "user_supplied"` and clears the corresponding prefill evidence.
+
+Example response excerpt when the user still needs to answer the work authorization question:
+
+```json
+{
+  "mode": "personalized",
+  "resume_id": "resume-example",
+  "candidate_name": "Casey Doe",
+  "selected_resume": "Backend.pdf",
+  "screening_questions": [
+    {
+      "id": "work_authorization",
+      "question": "Are you legally authorized to work in the UK for this role?",
+      "required": true,
+      "answer": null,
+      "source": null,
+      "evidence": []
+    }
+  ],
+  "missing_required_questions": ["work_authorization"],
+  "ready_for_review": false
+}
+```
+
+An unknown resume returns `404`. An unreviewed resume or a missing candidate name returns `409` with a `detail` message. Drafts retain their original profile snapshot after later edits to the profile or resume review. Sending only `job_id` creates a `demo` draft eligible for the test inbox. Personalized drafts are saved for review, and their submission endpoint returns `409`.
+
+## 8. Greenhouse Job Discovery
+
+In the PowerShell terminal that runs FastAPI, set `GETSWYDD_GREENHOUSE_BOARDS` to a JSON object mapping up to five approved public board tokens to their employer display names. Use the board token from the Greenhouse link on the employer's own careers page.
+
+```powershell
+$env:GETSWYDD_GREENHOUSE_BOARDS = '{"board-token":"Employer Name"}'
+```
+
+Start or restart FastAPI from that terminal. To sync a board and read the imported jobs:
+
+```powershell
+Invoke-RestMethod -Method Post "http://127.0.0.1:8000/api/v1/jobs/greenhouse/refresh"
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/jobs?source=greenhouse"
+```
+
+- **Refresh** returns one record per configured board with `board`, `status`, and `count`. Status is `refreshed`, `cached` (the last success was less than five minutes ago), or `failed` (the last successful snapshot is kept). A successful refresh replaces the board snapshot, including removing jobs the feed no longer lists. With zero configured boards, refresh returns `[]`.
+- **List** accepts `source=demo` (the default), `source=greenhouse`, or `source=all`. It reads the local snapshot. Each Greenhouse job has `source: "greenhouse"`, `application_mode: "assisted"`, an HTTPS `apply_url` from the provider, a plain-text description, and `source_fetched_at`. The provider's update timestamp is `source_updated_at`. For imported jobs, `posted_date`, `eligibility`, and the top-level demo resume may be null.
+- **Matching** compares recognized skill mentions in the description against confirmed profile facts. `match.scope` is `description_mentions`. Display those as skill mentions, since employer requirements and eligibility still need review. When none of the supported skills appear, `match` is null. For boards whose descriptions exceed the response limit, the importer uses the provider's shorter feed, which contains links but may omit descriptions and matches.
+- **Apply** shows a link to `apply_url` for `application_mode: "assisted"`. To prepare a draft first, follow section 9. The user completes the application on the employer's page.
+
+An invalid board configuration returns `503` on Greenhouse-specific queries. Greenhouse receives public listing and form reads. Candidate details and resumes stay local.
+
+## 9. Assisted Applications for Greenhouse Jobs
+
+Send the imported job ID and a reviewed resume ID to `POST /api/v1/applications/drafts`:
+
+```json
+{
+  "job_id": "greenhouse:example:123",
+  "resume_id": "resume-example"
+}
+```
+
+On `201`, the existing draft response includes `mode: "assisted"`, the selected resume, confirmed name, and `apply_url`. Show **Open employer application** using the returned URL. A missing reviewed resume or confirmed candidate name returns `409`. A job outside the configured, cached listings returns `404`. If Greenhouse confirms the posting closed, creation returns `409` and asks for a job refresh.
+
+| Field | Frontend behavior |
+|---|---|
+| `form_status: "loaded"` | Show the imported custom text and single-select questions below the profile information. |
+| `form_status: "partial"` | Show the questions that could be imported and tell the user to complete the other fields on the employer's page. |
+| `form_status: "unavailable"` | Show the employer link and selected resume so the user can continue. The draft has no imported questions. |
+| `screening_questions[].choices` | Use a text input if empty, otherwise offer the listed values. Save by sending the selected label as the answer string. |
+| `ready_for_review` | Reports completion of the local screening questions. The employer's form may ask for additional information. |
+
+Use the existing answer update route to save changes. Prefill requires a direct match to a supported confirmed profile field. Other responses remain blank until the user fills them in. Fields for file uploads, consent, and demographics are completed on the employer's page.
+
+Use `GET /api/v1/applications/assisted` to list the real drafts in the tracker. After the user says they finished on the employer's site, send `PUT /api/v1/applications/drafts/{id}/reported-submission` with `{"submitted":true}`. The response combines the tracker status and job details:
+
+```json
+{
+  "draft_id": "draft-example",
+  "job_id": "greenhouse:example:123",
+  "job_title": "Backend Internship",
+  "company": "Example Employer",
+  "selected_resume": "Backend.pdf",
+  "apply_url": "https://job-boards.greenhouse.io/example/jobs/123",
+  "status": "submitted",
+  "status_source": "user_reported",
+  "reported_submitted_at": "2026-11-22T12:00:00Z",
+  "updated_at": "2026-11-22T12:00:00Z"
+}
+```
+
+Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, and a null submission time. Repeating a report returns the same timestamp, and reported drafts become read-only. The original test inbox endpoint accepts demo drafts. Employer communications for assisted drafts are limited to public form reads. The tracker records the user's account of completion.

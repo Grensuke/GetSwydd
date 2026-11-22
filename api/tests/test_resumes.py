@@ -166,3 +166,70 @@ def test_job_matches_use_confirmed_evidence_and_recommend_a_resume_for_each_role
     assert updated_data["matched_skills"] == 1
     sql = next(item for item in updated_data["requirements"] if item["label"] == "SQL")
     assert sql["status"] == "no_confirmed_evidence"
+
+
+def test_personalized_draft_requires_a_reviewed_resume_and_confirmed_name(client):
+    resume = client.post("/api/v1/resumes", files={"file": ("backend.pdf", sample_pdf())}).json()
+    url = "/api/v1/applications/drafts"
+    payload = {"job_id": "job-py-001", "resume_id": resume["id"]}
+    assert client.post(url, json={**payload, "resume_id": "missing"}).status_code == 404
+    assert client.post(url, json=payload).status_code == 409
+    assert client.put(
+        f"/api/v1/resumes/{resume['id']}/review",
+        json={"revision": 0, "facts": resume["suggested_facts"]},
+    ).status_code == 200
+    assert client.post(url, json=payload).status_code == 409
+
+    demo = client.post(url, json={"job_id": "job-py-001"}).json()
+    assert demo["mode"] == "demo"
+    assert demo["candidate_name"] == "Alex Morgan"
+
+
+def test_draft_uses_the_selected_resume_and_preserves_the_confirmed_snapshot(client):
+    selected = client.post("/api/v1/resumes", files={"file": ("resume.pdf", sample_pdf())}).json()
+    other = client.post("/api/v1/resumes", files={"file": ("resume.pdf", sample_pdf())}).json()
+    for resume, skills in [(selected, ["Python 3"]), (other, ["Flask"])]:
+        assert client.put(
+            f"/api/v1/resumes/{resume['id']}/review",
+            json={"revision": 0, "facts": {"skills": skills}},
+        ).status_code == 200
+
+    profile_url = "/api/v1/profile/application-details"
+    saved = client.put(
+        profile_url, json={"candidate_name": " Casey Doe ", "availability": "June, 20 hours per week"}
+    )
+    assert saved.status_code == 200
+    assert client.get(profile_url).json() == saved.json()
+    response = client.post(
+        "/api/v1/applications/drafts", json={"job_id": "job-py-001", "resume_id": selected["id"]}
+    )
+    assert response.status_code == 201
+    draft = response.json()
+    assert draft["mode"] == "personalized"
+    assert draft["candidate_name"] == "Casey Doe"
+    assert draft["selected_resume"] == "resume.pdf"
+    assert draft["resume_id"] == selected["id"]
+    assert draft["missing_required_questions"] == ["work_authorization"]
+    questions = {question["id"]: question for question in draft["screening_questions"]}
+    assert questions["python_experience"]["answer"] == "Confirmed skills: Python 3."
+    assert questions["python_experience"]["evidence"][0]["resume"]["resume_id"] == selected["id"]
+    assert questions["availability"]["evidence"][0]["profile_field"] == "availability"
+    assert questions["work_authorization"]["answer"] is None
+
+    assert client.put(profile_url, json={"candidate_name": "New name"}).status_code == 200
+    draft_url = f"/api/v1/applications/drafts/{draft['id']}"
+    assert client.get(draft_url).json() == draft
+
+    updated = client.patch(
+        f"{draft_url}/answers",
+        json={"answers": {"work_authorization": "No", "availability": "July"}},
+    ).json()
+    assert updated["ready_for_review"]
+    availability = next(q for q in updated["screening_questions"] if q["id"] == "availability")
+    assert availability["source"] == "user_supplied"
+    assert availability["evidence"] == []
+    assert client.post(
+        f"{draft_url}/submit",
+        json={"approved": True, "draft_updated_at": updated["updated_at"]},
+    ).status_code == 409
+    assert client.get("/api/v1/applications").json() == []
