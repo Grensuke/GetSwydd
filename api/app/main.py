@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.discovery_routes import router as discovery_router
 from app.db import (
     DraftConflict,
     deliver_to_test_employer,
@@ -95,6 +96,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(resume_router)
+app.include_router(discovery_router)
 
 # Synthetic job catalog
 SYNTHETIC_JOBS: List[Job] = [

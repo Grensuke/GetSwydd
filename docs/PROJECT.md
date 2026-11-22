@@ -51,5 +51,6 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 - [x] Filter by workplace, employment type, experience, compensation, and closing date when listed.
 - [x] Explain recognized job requirements and offer opt-in semantic resume comparison.
 - [x] Refresh job listings on a schedule and retain deduplicated saved-search alerts.
+- [x] Turn natural-language search requests into a ranked shortlist with the Job Discovery Agent.
 - [ ] Add an authorized employer submission integration.
 - [ ] Application status Kanban dashboard.

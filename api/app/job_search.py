@@ -10,16 +10,16 @@ DEADLINE = re.compile(r"(?im)^\s*(?:application deadline|applications close|clos
 DECLARED_EMPLOYMENT = re.compile(r"(?im)^\s*(?:employment type|job type)\s*:\s*(full[- ]time|part[- ]time|contract|temporary|internship)\b")
 
 
-def _tokens(value: str) -> set[str]:
+def search_tokens(value: str) -> set[str]:
     return set(TOKEN.findall(value.casefold()))
 
 
 def _alternatives(values: list[str]) -> list[set[str]]:
-    return [words for value in values if (words := _tokens(value))]
+    return [words for value in values if (words := search_tokens(value))]
 
 
 def enrich_listing(job: Job) -> Job:
-    title = _tokens(job.title)
+    title = search_tokens(job.title)
     place = job.location.casefold()
     workplace: Workplace | None = job.workplace
     if workplace is None:
@@ -67,7 +67,7 @@ def filter_jobs(
 ) -> list[Job]:
     preferred_roles = _alternatives(preferences.role_keywords)
     preferred_locations = _alternatives(preferences.location_keywords)
-    query_words, location_words = _tokens(query), _tokens(location)
+    query_words, location_words = search_tokens(query), search_tokens(location)
     require_internship = preferences.internships_only if internships_only is None else internships_only
     today = datetime.now(timezone.utc).date().isoformat()
     closing_by = None
@@ -82,8 +82,8 @@ def filter_jobs(
             continue
         if closing_by and (not deadline or deadline > closing_by):
             continue
-        title = _tokens(job.title)
-        places = [_tokens(place) for place in [job.location, *job.additional_locations]]
+        title = search_tokens(job.title)
+        places = [search_tokens(place) for place in [job.location, *job.additional_locations]]
         if require_internship and job.employment != "internship":
             continue
         if preferred_roles and not any(words <= title for words in preferred_roles):
@@ -105,7 +105,7 @@ def filter_jobs(
                 continue
         if location_words and not any(location_words <= place for place in places):
             continue
-        if query_words <= (title | _tokens(job.company)):
+        if query_words <= (title | search_tokens(job.company)):
             results.append(job)
     return results
 

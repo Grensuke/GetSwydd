@@ -499,3 +499,39 @@ Resume recommendations use confirmed skill evidence and work without a model key
 ### Automatic refresh
 
 Set `GETSWYDD_SEARCH_INTERVAL_MINUTES` to a value from 5–1440 to start periodic refresh while the API is running with one worker. The default is 0 (manual refresh). Existing cached postings establish the alert baseline on upgrade. Alerts are created when new listings match a saved filter, and one canonical apply link produces at most one alert. Listings already seen remain in search results if they match the current filters.
+
+## 12. Job Discovery Agent
+
+Use `POST /api/v1/agents/job-discovery` once a live board is configured. Set `GETSWYDD_DISCOVERY_PROVIDER` and the matching API key in `api/.env`.
+
+| Provider | API key | Default model |
+|---|---|---|
+| `openai` (default) | `GETSWYDD_AGENT_OPENAI_API_KEY` or `GETSWYDD_OPENAI_API_KEY` | `gpt-4.1-mini` |
+| `groq` | `GROQ_API_KEY` | `openai/gpt-oss-20b` |
+
+Leave `GETSWYDD_DISCOVERY_MODEL` blank to use the selected provider's default. A model override must support strict Structured Outputs on Chat Completions. Provider selection applies to discovery. The separate opt-in semantic comparison uses OpenAI embeddings.
+
+```json
+{
+  "message": "Find remote Python internships I can apply to from India using my backend resume",
+  "limit": 5,
+  "refresh": false
+}
+```
+
+`resume_id`, `limit`, and `refresh` are optional. Supply `resume_id` from `GET /api/v1/resumes` when the user picked a reviewed upload. The user can name a resume in the request, and the agent resolves that name locally. Without a selected resume, matching uses the combined confirmed profile. Each request is self-contained. After a clarification, resubmit the full request with the clarified details or selected resume ID.
+
+By default the agent reads the local live-job catalog and returns up to five results. `refresh:true` invokes the existing public-feed refresh for the selected sources. `refresh_sources` reports outcomes, and `refresh_in_progress` flags an overlapping refresh when the agent uses the last available catalog. The query can ask for up to ten results and the explicit API `limit` caps that count. Explicit filters override the matching saved preference, and saved preferences apply elsewhere unless the user asks to ignore them.
+
+| Response | Frontend action |
+|---|---|
+| `status: "results"` | Show the applied `filters`, `total_matches`, and returned `jobs`. Each job includes its real posting ID, company, official `apply_url`, profile match, eligibility checks, and recommended resume with evidence when available. |
+| `status: "needs_clarification"` | Display `message` as plain text and offer `resume_options` when supplied. |
+| `status: "no_results"` | Show `message` and the applied filters. Offer a feed refresh when the catalog is empty. |
+| `status: "out_of_scope"` | Explain that the agent handles discovery and fit comparison. Use the existing application-draft workflow for preparation and approval. |
+
+`applicant_location_check.status` is `listed_location`, `needs_confirmation`, or `not_requested`. `listed_location` means an explicit matching location was found in the job's locations or a labelled eligibility location from its description. Display the supplied evidence. Treat unqualified remote listings as needing confirmation. Location evidence is separate from legal work authorization.
+
+The model receives the search message and the agent's role instructions to produce the plan. Job results and URLs come from the configured public catalog. Resume matching and work-authorization checks use existing local services. Uploaded files, confirmed profile details, and API keys are excluded from the model's messages. Render all returned text as plain text and use the separate `apply_url` field for the employer link.
+
+Discovery errors return a JSON object with a safe `detail` message. A missing or invalid model key, invalid board configuration, model access error, or exhausted API quota returns `503`. Provider rate limits return `429` and provider timeouts return `504`. Other provider failures and unusable plans return `502`. The existing jobs and draft APIs continue to operate independently of the agent provider.
