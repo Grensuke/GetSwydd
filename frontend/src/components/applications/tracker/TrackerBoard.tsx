@@ -1,0 +1,257 @@
+"use client";
+
+import Link from "next/link";
+import React, { useMemo, useState } from "react";
+import type { TrackedApplication } from "@/lib/applications/normalize";
+import {
+  type ConfirmedStage,
+  CONFIRMED_STAGE_MAP,
+  type PersonalStage,
+  PERSONAL_STAGE_MAP,
+} from "@/lib/applications/status";
+import {
+  setPersonalStatus,
+  useAllPersonalStatuses,
+} from "@/lib/applications/personal-status";
+import { Badge, EmptyState, SourceTag } from "@/components/ui";
+import { formatDate } from "@/lib/format";
+import { MoveStageMenu } from "./MoveStageMenu";
+import { PersonalStatusEditor } from "./PersonalStatusEditor";
+
+export interface TrackerBoardProps {
+  applications: TrackedApplication[];
+}
+
+type BoardColumnKey = ConfirmedStage | PersonalStage;
+
+interface BoardColumnDef {
+  key: BoardColumnKey;
+  label: string;
+  kind: "confirmed" | "personal";
+  description: string;
+}
+
+export function TrackerBoard({ applications }: TrackerBoardProps) {
+  const personalStatuses = useAllPersonalStatuses();
+  const [editingApp, setEditingApp] = useState<TrackedApplication | null>(null);
+  const [announcement, setAnnouncement] = useState<string>("");
+
+  // Determine if any application has a personal "saved" stage
+  const hasSavedStage = useMemo(() => {
+    return Object.values(personalStatuses).some((p) => p.stage === "saved");
+  }, [personalStatuses]);
+
+  // Define columns in exact required order
+  const columns: BoardColumnDef[] = useMemo(() => {
+    const list: BoardColumnDef[] = [
+      { key: "preparing", label: "Preparing", kind: "confirmed", description: "In preparation" },
+      { key: "submitted_reported", label: "Submitted (reported)", kind: "confirmed", description: "Reported submitted" },
+      { key: "assessment", label: "Assessment", kind: "personal", description: "Tests & assignments" },
+      { key: "interview", label: "Interview", kind: "personal", description: "Conversations & rounds" },
+      { key: "offer", label: "Offer", kind: "personal", description: "Offers received" },
+      { key: "rejected", label: "Rejected", kind: "personal", description: "Closed / unfulfilled" },
+    ];
+    if (hasSavedStage) {
+      list.push({ key: "saved", label: "Saved", kind: "personal", description: "Bookmarked roles" });
+    }
+    return list;
+  }, [hasSavedStage]);
+
+  // Group applications into board columns (excluding test submissions, which have their own lane)
+  const { columnBuckets, testSubmissions } = useMemo(() => {
+    const buckets: Record<string, TrackedApplication[]> = {};
+    columns.forEach((c) => {
+      buckets[c.key] = [];
+    });
+    const tests: TrackedApplication[] = [];
+
+    applications.forEach((app) => {
+      if (app.kind === "test") {
+        tests.push(app);
+        return;
+      }
+      const personal = personalStatuses[app.key];
+      if (personal?.stage && buckets[personal.stage]) {
+        buckets[personal.stage].push(app);
+      } else if (buckets[app.confirmedStage]) {
+        buckets[app.confirmedStage].push(app);
+      }
+    });
+
+    return { columnBuckets: buckets, testSubmissions: tests };
+  }, [applications, personalStatuses, columns]);
+
+  function handleMove(app: TrackedApplication, nextStage: PersonalStage | null) {
+    const prev = personalStatuses[app.key];
+    setPersonalStatus(app.key, {
+      stage: nextStage,
+      note: prev?.note,
+      relevantDate: prev?.relevantDate,
+    });
+    const targetLabel = nextStage ? PERSONAL_STAGE_MAP[nextStage]?.label : "Confirmed stage";
+    const msg = `Moved ${app.company}, ${app.jobTitle} to ${targetLabel} (your note)`;
+    setAnnouncement(msg);
+  }
+
+  if (applications.length === 0) {
+    return (
+      <EmptyState
+        eyebrow="NO APPLICATIONS"
+        title="Nothing tracked yet."
+        description="Prepare an application from a job listing to see your board populate."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Screen reader live announcements */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </div>
+
+      {/* Main Board Horizontal Scroll Container */}
+      <div className="overflow-x-auto pb-4 scroll-smooth focus:outline-none">
+        <div className="flex gap-4 min-w-[960px] snap-x">
+          {columns.map((col) => {
+            const cards = columnBuckets[col.key] || [];
+
+            return (
+              <div
+                key={col.key}
+                className="flex-1 min-w-[220px] rounded-lg border border-hairline bg-paper-raised p-3 flex flex-col gap-3 snap-start"
+              >
+                {/* Column Header */}
+                <div className="flex items-center justify-between pb-2 border-b border-hairline">
+                  <div className="space-y-0.5">
+                    <span className="font-semibold text-xs text-ink block">{col.label}</span>
+                    <span className="text-[10px] text-sage-deep block">{col.description}</span>
+                  </div>
+                  <span className="font-mono text-xs bg-paper px-2 py-0.5 rounded border border-hairline text-ink">
+                    {cards.length}
+                  </span>
+                </div>
+
+                {/* Cards Container */}
+                <div className="space-y-2.5 flex-1 min-h-[140px]">
+                  {cards.length === 0 ? (
+                    <div className="h-24 flex items-center justify-center text-[11px] text-sage-deep italic border border-dashed border-hairline rounded bg-paper/30">
+                      No roles in this stage
+                    </div>
+                  ) : (
+                    cards.map((app) => {
+                      const personal = personalStatuses[app.key];
+                      const confirmedInfo = CONFIRMED_STAGE_MAP[app.confirmedStage];
+                      const isPersonalColumn = col.kind === "personal";
+
+                      return (
+                        <div
+                          key={app.key}
+                          className="p-3 rounded-md border border-hairline bg-paper space-y-2 text-xs shadow-[0_1px_0_rgba(43,47,39,0.03)] hover:border-hairline-strong transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="eyebrow block text-sage-deep">{app.company}</span>
+                            <MoveStageMenu
+                              currentPersonalStage={personal?.stage ?? null}
+                              onSelectStage={(next) => handleMove(app, next)}
+                            />
+                          </div>
+
+                          <Link
+                            href={app.links.draft}
+                            className="font-display text-sm font-medium text-ink hover:underline block leading-snug"
+                          >
+                            {app.jobTitle}
+                          </Link>
+
+                          {/* Provenance note in personal column */}
+                          {isPersonalColumn && (
+                            <div className="text-[10px] text-sage-deep border-l border-sage/40 pl-1.5 py-0.5">
+                              Confirmed: {confirmedInfo.label}
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            <Badge tone={confirmedInfo.tone}>{confirmedInfo.label}</Badge>
+                            {personal?.stage && (
+                              <Badge tone="outline">{PERSONAL_STAGE_MAP[personal.stage].label}</Badge>
+                            )}
+                            {personal?.note && (
+                              <SourceTag source="personal_note" />
+                            )}
+                          </div>
+
+                          {personal?.note && (
+                            <p className="text-[11px] text-ink-soft italic bg-paper-raised p-1.5 rounded border border-hairline/60 line-clamp-2">
+                              &ldquo;{personal.note}&rdquo;
+                            </p>
+                          )}
+
+                          <div className="pt-2 border-t border-hairline flex items-center justify-between text-[11px] text-sage-deep">
+                            <span className="font-mono text-[10px] truncate max-w-[100px]" title={app.resume}>
+                              {app.resume}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingApp(app)}
+                              className="text-ink underline hover:text-ink-soft cursor-pointer text-[11px]"
+                            >
+                              {personal ? "Edit note" : "+ Note"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Test Submissions Lane (Quietly Separated) */}
+      {testSubmissions.length > 0 && (
+        <div className="p-4 rounded-lg border border-hairline bg-paper space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="eyebrow block text-sage-deep">LOCAL SANDBOX</span>
+              <h4 className="font-display text-sm font-medium text-ink">
+                Test Submissions ({testSubmissions.length})
+              </h4>
+            </div>
+            <span className="text-[11px] text-sage-deep">Delivered to demo mock inbox</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {testSubmissions.map((test) => (
+              <div
+                key={test.key}
+                className="p-3 rounded-md border border-hairline bg-paper-raised text-xs space-y-1"
+              >
+                <span className="eyebrow block text-sage-deep">{test.company}</span>
+                <Link
+                  href={test.links.draft}
+                  className="font-medium text-ink hover:underline block"
+                >
+                  {test.jobTitle}
+                </Link>
+                <div className="flex items-center justify-between pt-1 text-[11px] text-sage-deep">
+                  <span className="font-mono">{formatDate(test.updatedAt)}</span>
+                  <Badge tone="neutral">Test Receipt</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <PersonalStatusEditor
+        open={Boolean(editingApp)}
+        onClose={() => setEditingApp(null)}
+        app={editingApp}
+        onAnnounce={setAnnouncement}
+      />
+    </div>
+  );
+}

@@ -7,10 +7,15 @@ GetSwydd is a full-stack job search and application assistant designed for candi
 ## Architecture Overview
 
 - **`api/`**: Python 3.12+ backend powered by [FastAPI](https://fastapi.tiangolo.com/) and [Pydantic](https://docs.pydantic.dev/). Provides health checks and validated synthetic job listings with CORS configured for `http://localhost:3000`.
-- **`web/`**: Modern frontend built with [Next.js](https://nextjs.org/) (App Router), TypeScript, Tailwind CSS, and npm. Features loading skeletons, empty state fallback, error diagnosis, and rich job opportunity cards.
-- **`docs/`**: Product roadmap, core rules, and API specifications.
-  - [docs/PROJECT.md](file:///c:/Users/STARK/Documents/GetSwydd/docs/PROJECT.md): Product vision, roadmap, and foundational rules.
-  - [docs/api-contract.md](file:///c:/Users/STARK/Documents/GetSwydd/docs/api-contract.md): Endpoint contract and next-milestone specification.
+- **`frontend/`**: Modern frontend built with [Next.js](https://nextjs.org/) (App Router), TypeScript, Tailwind CSS, and npm. Features loading skeletons, empty state fallback, error diagnosis, and rich job opportunity cards.
+- **`docs/`**: Product roadmap, core rules, API specifications, and frontend documentation.
+  - [frontend/docs/README.md](file:///c:/Users/bakht/GetSwydd/frontend/docs/README.md): Frontend documentation overview and architectural guide.
+  - [frontend/docs/FRONTEND-COMPLETE-REPORT.md](file:///c:/Users/bakht/GetSwydd/frontend/docs/FRONTEND-COMPLETE-REPORT.md): Authoritative consolidated frontend report.
+  - [Phase 1 Changelog](file:///c:/Users/bakht/GetSwydd/frontend/docs/PHASE-1-CHANGELOG.md): Design tokens, UI primitives, app shell, and typed API layer.
+  - [Phase 2 Changelog](file:///c:/Users/bakht/GetSwydd/frontend/docs/PHASE-2-CHANGELOG.md): Opportunity discovery engine, preferences, alerts, and job analysis.
+  - [Phase 3 Changelog](file:///c:/Users/bakht/GetSwydd/frontend/docs/PHASE-3-CHANGELOG.md): Application workflow, unified tracker, status model, board view, and dark mode.
+  - [docs/PROJECT.md](file:///c:/Users/bakht/GetSwydd/docs/PROJECT.md): Product vision, roadmap, and foundational rules.
+  - [docs/api-contract.md](file:///c:/Users/bakht/GetSwydd/docs/api-contract.md): Endpoint contract and next-milestone specification.
 
 ---
 
@@ -62,9 +67,9 @@ Follow these exact commands to install dependencies and run both servers locally
 
 ### Terminal 2: Frontend (Next.js)
 
-1. Open a second PowerShell terminal and navigate to the web directory:
+1. Open a second PowerShell terminal and navigate to the frontend directory:
    ```powershell
-   cd c:\Users\STARK\Documents\GetSwydd\web
+   cd frontend
    ```
 
 2. (Optional) Set up environment variables if modifying the API target:
@@ -102,16 +107,21 @@ Follow these exact commands to install dependencies and run both servers locally
   FRONTEND_ORIGIN=http://localhost:3000
   ```
 
-- **Frontend (`web/.env.example`)**:
+- **Frontend (`frontend/.env.example`)**:
   ```env
   NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
   ```
 
 ---
 
-## Next Milestone
+## Phase 1 Frontend Complete
 
-In Milestone 2, candidates will be able to:
-- Select a job from the listing to draft an application package.
-- Identify missing questions and supply verified answers.
-- Inspect the tailored draft before explicit submission to a local mock employer endpoint.
+The foundational Phase 1 frontend redesign is complete, introducing the quiet editorial design system, global app shell, typed API layer for all 24 backend endpoints, and the candidate profile editor:
+- **Full Phase 1 Documentation & QA Checklist:** [docs/frontend/PHASE-1-CHANGELOG.md](file:///c:/Users/bakht/GetSwydd/docs/frontend/PHASE-1-CHANGELOG.md)
+
+---
+
+## Phase 2 Frontend Complete
+
+Phase 2 delivered the full opportunity discovery engine, persistent search preferences, real-time unread alert popovers and ledger, deep job qualification analysis with evidence provenance, and the deadline radar:
+- **Full Phase 2 Documentation & QA Checklist:** [docs/frontend/PHASE-2-CHANGELOG.md](file:///c:/Users/bakht/GetSwydd/docs/frontend/PHASE-2-CHANGELOG.md)
