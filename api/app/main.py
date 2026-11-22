@@ -1,8 +1,11 @@
 """FastAPI application entry point for GetSwydd."""
-from contextlib import asynccontextmanager
+import asyncio
+import os
+from contextlib import asynccontextmanager, suppress
 from typing import List, Literal
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from app.db import (
     DraftConflict,
@@ -18,30 +21,36 @@ from app.db import (
     save_job_preferences,
 )
 from app.greenhouse import (
-    REFRESH_LOCK,
     BoardConfigError,
     BoardRefresh,
     PostingClosed,
     configured_boards,
     fetch_assisted_form,
     find_imported_job,
-    imported_jobs,
-    refresh_boards,
 )
+from app.job_alerts import RefreshBusy, list_alerts, read_alert, refresh_catalog, scheduled_refresh
+from app.job_analysis import analyze_job
 from app.job_search import filter_jobs, match_sort_key
+from app.job_sources import PUBLIC_SOURCES, SourceRefresh, live_jobs
 from app.matching import match_jobs
 from app.models import (
+    AnalyzeJobRequest,
     ApplicationDraft,
     AssistedApplication,
     DraftCreateRequest,
+    Employment,
+    ExperienceLevel,
     HealthResponse,
     Job,
+    JobAlert,
+    JobAnalysis,
     JobListResponse,
     JobSearchPreferences,
     ReportSubmissionRequest,
     SubmissionReceipt,
     SubmitDraftRequest,
     UpdateAnswersRequest,
+    Workplace,
 )
 from app.services import prepare_draft_for_job
 from app.resume_routes import router as resume_router
@@ -52,7 +61,17 @@ from app.resume_store import get_application_details, get_confirmed_profile, get
 async def lifespan(app: FastAPI):
     """Initialize database tables on application startup."""
     init_db()
-    yield
+    interval = int(os.getenv("GETSWYDD_SEARCH_INTERVAL_MINUTES", "0"))
+    if interval != 0 and not 5 <= interval <= 1440:
+        raise ValueError("Set GETSWYDD_SEARCH_INTERVAL_MINUTES to 0 or a value from 5 to 1440.")
+    worker = asyncio.create_task(scheduled_refresh(interval)) if interval else None
+    try:
+        yield
+    finally:
+        if worker:
+            worker.cancel()
+            with suppress(asyncio.CancelledError):
+                await worker
 
 
 app = FastAPI(
@@ -110,10 +129,14 @@ def get_health() -> HealthResponse:
 
 @app.get("/api/v1/jobs", response_model=JobListResponse, tags=["Jobs"])
 def get_jobs(
-    source: Literal["demo", "greenhouse", "all"] = "demo",
+    source: Literal["demo", "greenhouse", "lever", "ashby", "live", "all"] = "demo",
     q: str = Query(default="", max_length=120),
     location: str = Query(default="", max_length=120),
     internships_only: bool | None = None,
+    workplace: Workplace | None = None,
+    employment: Employment | None = None,
+    experience_level: ExperienceLevel | None = None,
+    closing_within_days: int | None = Query(default=None, ge=0, le=90),
     use_preferences: bool = False,
     sort: Literal["default", "match"] = "default",
     offset: int = Query(default=0, ge=0),
@@ -121,21 +144,31 @@ def get_jobs(
 ) -> JobListResponse:
     """Return sample jobs, imported jobs, or both using the locally confirmed profile."""
     jobs = list(SYNTHETIC_JOBS) if source in {"demo", "all"} else []
-    if source in {"greenhouse", "all"}:
+    if source != "demo":
         try:
-            jobs.extend(imported_jobs(configured_boards()))
+            jobs.extend(live_jobs(PUBLIC_SOURCES if source in {"live", "all"} else (source,)))
         except BoardConfigError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
 
     preferences = get_job_preferences() if use_preferences else JobSearchPreferences()
-    filtered = filter_jobs(jobs, preferences, query=q, location=location, internships_only=internships_only)
+    if workplace:
+        preferences.workplace_modes = [workplace]
+    if employment:
+        preferences.employment_types = [employment]
+    if experience_level:
+        preferences.experience_levels = [experience_level]
+    filtered = filter_jobs(
+        jobs, preferences, query=q, location=location,
+        internships_only=internships_only, closing_within_days=closing_within_days,
+    )
     profile = get_confirmed_profile()
+    details = get_application_details()
     end = None if limit is None else offset + limit
     if sort == "match":
-        ordered = sorted(match_jobs(filtered, profile), key=match_sort_key)
+        ordered = sorted(match_jobs(filtered, profile, details), key=match_sort_key)
         page = ordered[offset:end]
     else:
-        page = match_jobs(filtered[offset:end], profile)
+        page = match_jobs(filtered[offset:end], profile, details)
     return JobListResponse(total=len(filtered), jobs=page)
 
 
@@ -153,17 +186,65 @@ def update_job_preferences(preferences: JobSearchPreferences) -> JobSearchPrefer
 def refresh_greenhouse_jobs() -> list[BoardRefresh]:
     """Refresh configured public job feeds and return their individual results."""
     try:
-        boards = configured_boards()
+        sources, _ = refresh_catalog(("greenhouse",))
     except BoardConfigError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
-    if not boards:
-        return []
-    if not REFRESH_LOCK.acquire(blocking=False):
-        raise HTTPException(status_code=409, detail="A Greenhouse refresh is already running.")
+    except RefreshBusy as error:
+        raise HTTPException(status_code=409, detail="A job refresh is already running.") from error
+    return [BoardRefresh.model_validate(item.model_dump()) for item in sources]
+
+
+class JobRefreshResult(BaseModel):
+    sources: list[SourceRefresh]
+    new_alerts: int
+
+
+@app.post("/api/v1/jobs/refresh", response_model=JobRefreshResult, tags=["Jobs"])
+def refresh_live_jobs() -> JobRefreshResult:
     try:
-        return refresh_boards(boards)
-    finally:
-        REFRESH_LOCK.release()
+        sources, alerts = refresh_catalog()
+    except BoardConfigError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except RefreshBusy as error:
+        raise HTTPException(status_code=409, detail="A job refresh is already running.") from error
+    return JobRefreshResult(sources=sources, new_alerts=alerts)
+
+
+@app.get("/api/v1/jobs/alerts", response_model=list[JobAlert], tags=["Jobs"])
+def job_alerts(
+    unread_only: bool = False,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> list[JobAlert]:
+    return list_alerts(unread_only, limit, offset)
+
+
+@app.put("/api/v1/jobs/alerts/{alert_id}/read", response_model=JobAlert, tags=["Jobs"])
+def mark_job_alert_read(alert_id: str) -> JobAlert:
+    alert = read_alert(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Job alert not found.")
+    return alert
+
+
+def _lookup_job(job_id: str) -> Job | None:
+    provider, _, _ = job_id.partition(":")
+    try:
+        if provider == "greenhouse":
+            return find_imported_job(job_id, configured_boards())
+        if provider in {"lever", "ashby"}:
+            return next((job for job in live_jobs((provider,)) if job.id == job_id), None)
+    except BoardConfigError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return next((job for job in SYNTHETIC_JOBS if job.id == job_id), None)
+
+
+@app.post("/api/v1/jobs/{job_id}/analysis", response_model=JobAnalysis, tags=["Jobs"])
+def job_analysis(job_id: str, payload: AnalyzeJobRequest) -> JobAnalysis:
+    job = _lookup_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return analyze_job(job, get_confirmed_profile(), payload.use_semantic, get_application_details())
 
 
 @app.post(
@@ -178,13 +259,7 @@ def create_draft(payload: DraftCreateRequest) -> ApplicationDraft:
     Pre-populates answers only from verified facts; missing required questions
     are flagged for user input without guessing.
     """
-    if payload.job_id.startswith("greenhouse:"):
-        try:
-            job = find_imported_job(payload.job_id, configured_boards())
-        except BoardConfigError as error:
-            raise HTTPException(status_code=503, detail=str(error)) from error
-    else:
-        job = next((j for j in SYNTHETIC_JOBS if j.id == payload.job_id), None)
+    job = _lookup_job(payload.job_id)
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -208,7 +283,7 @@ def create_draft(payload: DraftCreateRequest) -> ApplicationDraft:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Confirm your candidate name first.")
 
     form = None
-    if assisted:
+    if job.source == "greenhouse":
         try:
             form = fetch_assisted_form(job)
         except PostingClosed as error:
@@ -217,7 +292,7 @@ def create_draft(payload: DraftCreateRequest) -> ApplicationDraft:
     draft = prepare_draft_for_job(
         job, resume=resume, details=details,
         assisted_questions=form.questions if form else None,
-        form_status=form.status if form else None,
+        form_status=form.status if form else "unavailable" if assisted else None,
     )
     save_draft(draft)
     return draft

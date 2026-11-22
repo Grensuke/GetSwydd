@@ -77,6 +77,19 @@ def init_db(db_path: Optional[str] = None) -> None:
                     data_json TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS public_job_feeds (
+                    source TEXT NOT NULL, token TEXT NOT NULL, fetched_at TEXT NOT NULL,
+                    jobs_json TEXT NOT NULL, PRIMARY KEY (source, token)
+                )
+            """)
+            conn.execute("CREATE TABLE IF NOT EXISTS discovered_job_keys (key TEXT PRIMARY KEY)")
+            conn.execute("CREATE TABLE IF NOT EXISTS initialized_discovery_sources (source TEXT PRIMARY KEY)")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS job_alerts (
+                    id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data_json TEXT NOT NULL, read_at TEXT
+                )
+            """)
     finally:
         conn.close()
 

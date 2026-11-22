@@ -26,7 +26,7 @@ def posting(**updates):
         "id": 123,
         "title": "Backend Internship",
         "location": {"name": "Remote"},
-        "absolute_url": "https://job-boards.greenhouse.io/example/jobs/123",
+        "absolute_url": f"https://job-boards.greenhouse.io/example/jobs/{updates.get('id', 123)}",
         "updated_at": "2026-11-22T09:30:00Z",
         "content": "&lt;p&gt;Python and SQL are used on this team.&lt;/p&gt;"
                    "&lt;script&gt;Docker&lt;/script&gt;&lt;p&gt;JavaScript helps.&lt;/p&gt;",
@@ -248,10 +248,14 @@ def test_search_filters_saved_preferences_and_ranks_confirmed_skills(client, mon
     assert client.post(REFRESH).json()[0]["count"] == 5
 
     prefs_url = "/api/v1/jobs/preferences"
-    assert client.get(prefs_url).json() == {"role_keywords": [], "location_keywords": [], "internships_only": False}
+    assert client.get(prefs_url).json() == {
+        "role_keywords": [], "location_keywords": [], "internships_only": False, "workplace_modes": [],
+        "employment_types": [], "experience_levels": [], "minimum_pay": None, "include_unknown": False,
+    }
     prefs = {"role_keywords": ["Backend", "Data Analyst"], "location_keywords": ["India"], "internships_only": True}
-    assert client.put(prefs_url, json=prefs).json() == prefs
-    assert client.get(prefs_url).json() == prefs
+    saved = client.put(prefs_url, json=prefs).json()
+    assert all(saved[key] == value for key, value in prefs.items())
+    assert client.get(prefs_url).json() == saved
 
     def search(**options):
         response = client.get(JOBS, params={"source": "greenhouse", **options})

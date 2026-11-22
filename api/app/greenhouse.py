@@ -103,8 +103,12 @@ class FeedTooLarge(ValueError):
 
 
 def _download_json(client: Client, path: str, params: dict[str, str]) -> bytearray:
+    return download_public_json(client, f"{BOARD_API}/{path}", params)
+
+
+def download_public_json(client: Client, url: str, params: dict[str, str]) -> bytearray:
     data = bytearray()
-    with client.stream("GET", f"{BOARD_API}/{path}", params=params) as response:
+    with client.stream("GET", url, params=params) as response:
         response.raise_for_status()
         length = response.headers.get("Content-Length", "")
         if length.isdecimal() and int(length) > MAX_RESPONSE_BYTES:

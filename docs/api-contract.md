@@ -447,3 +447,55 @@ Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, a
 | `limit`, `offset` | Page size (1–100) and zero-based offset. `total` counts all filtered results before paging. |
 
 Example for the frontend's personalized listings view: `GET /api/v1/jobs?source=greenhouse&use_preferences=true&sort=match&limit=20`. Search uses the current local snapshot. Location text and skill matches help discovery and do not establish eligibility.
+
+## 11. Unified Job Discovery and Analysis
+
+Set any of these JSON board maps in the terminal that starts FastAPI. The map key is the board token from the employer's official careers link. Each provider accepts up to five boards.
+
+```powershell
+$env:GETSWYDD_GREENHOUSE_BOARDS = '{"mozilla":"Mozilla"}'
+$env:GETSWYDD_LEVER_BOARDS = '{"palantir":"Palantir"}'
+$env:GETSWYDD_ASHBY_BOARDS = '{"linear":"Linear"}'
+```
+
+The Lever adapter reads the global public Postings API. The Ashby adapter imports publicly listed postings. All providers use official application links. Candidate details are kept local during job refresh. Greenhouse can provide assisted screening questions, and Lever and Ashby drafts link users to the official form for completion.
+
+| Endpoint | Frontend behavior |
+|---|---|
+| `POST /api/v1/jobs/refresh` | Returns `{ "sources": [...], "new_alerts": 0 }`. Each source record contains `source`, `board`, `status` (`refreshed`, `cached`, or `failed`), and `count`. A failed board retains its last successful snapshot. |
+| `GET /api/v1/jobs?source=live` | Combines configured feeds using canonical application links for deduplication. `source=all` includes demo roles. The individual source values are `greenhouse`, `lever`, and `ashby`. |
+| `POST /api/v1/jobs/{job_id}/analysis` | Accepts `{}` for local analysis or `{"use_semantic":true}` for a separate AI similarity comparison. Returns `job`, `summary`, `semantic_status`, and `semantic_resume_matches`. URL-encode the job ID if your client requires it. |
+| `GET /api/v1/jobs/alerts?unread_only=true` | Returns newly discovered matches, newest first, with job ID, title, employer, location, link, deadline when known, and read timestamp. Use `limit` and `offset` for paging. |
+| `PUT /api/v1/jobs/alerts/{alert_id}/read` | Marks an alert as read and returns it. Repeating the call keeps the first read timestamp. |
+
+### Filters and known metadata
+
+Save the additional settings with the existing preferences endpoint:
+
+```json
+{
+  "role_keywords": ["Backend", "Data Analyst"],
+  "location_keywords": ["India", "Remote"],
+  "workplace_modes": ["remote", "hybrid"],
+  "employment_types": ["internship", "full_time"],
+  "experience_levels": ["intern", "entry"],
+  "minimum_pay": {"amount": 20000, "currency": "INR", "period": "month"},
+  "include_unknown": true
+}
+```
+
+`workplace` accepts `remote`, `hybrid`, or `onsite`. `employment` accepts `internship`, `full_time`, `part_time`, `contract`, or `temporary`. `experience_level` accepts `intern`, `entry`, `mid`, or `senior`. Pass them directly in the jobs query to override the corresponding saved filter. Use `closing_within_days=7` to show jobs with a known deadline within seven days.
+
+Compensation filtering compares the top of a published range with the requested amount in the same currency and pay period. Accepted periods are `hour`, `week`, `month`, `year`, and `one_time`. Unknown values stay null or empty. Turn on `include_unknown` to keep jobs without comparable metadata for the new filters. A deadline is used only when a listing explicitly labels an ISO date as its deadline. Passed deadlines are excluded using the UTC calendar date.
+
+### Match explanation and optional semantic comparison
+
+Each skill or eligibility check includes a `kind` of `required_skill`, `mentioned_skill`, or `manual_check` plus the confirmed facts and resume sources. Requirements are recognized from supported explicit headings. Optional or alternative lines remain mentions. Checks such as work authorization, years of experience, and education may need direct confirmation. Explicit UK authorization requirements can use the user's confirmed UK authorization; in that case the check also includes `confirmation_source`.
+
+`eligibility_status` is `not_established`, `needs_confirmation`, `missing_evidence`, `not_met`, or `listed_requirements_supported`. It describes the recognized evidence. With `sort=match`, a confirmed unmet requirement moves a job below other matches before the skill ranking is applied.
+
+Resume recommendations use confirmed skill evidence and work without a model key. The optional semantic comparison requires `GETSWYDD_OPENAI_API_KEY` at server startup and `use_semantic:true` in the request. It sends the public job title and description and up to 12 reviewed resumes' confirmed skill labels to the OpenAI embeddings endpoint. File bytes, filenames, and profile contact details stay local. Return the cosine similarity as a similarity score. Keep eligibility and evidence visible if the service is unavailable.
+
+### Automatic refresh
+
+Set `GETSWYDD_SEARCH_INTERVAL_MINUTES` to a value from 5–1440 to start periodic refresh while the API is running with one worker. The default is 0 (manual refresh). Existing cached postings establish the alert baseline on upgrade. Alerts are created when new listings match a saved filter, and one canonical apply link produces at most one alert. Listings already seen remain in search results if they match the current filters.

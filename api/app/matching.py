@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from app.models import Job, JobMatch, RequirementMatch, ResumeRecommendation
-from app.resume_models import ConfirmedProfile, ProfileFact
+from app.resume_models import ApplicationDetails, ConfirmedProfile, ProfileFact
 
 
 @dataclass(frozen=True)
@@ -63,13 +63,37 @@ DESCRIPTION_PATTERNS = [
     (skill, re.compile(r"(?<!\w)(?:" + "|".join(map(re.escape, skill.accepted_names)) + r")(?!\w)"))
     for skill in DESCRIPTION_SKILLS
 ]
+REQUIRED_HEADING = re.compile(
+    r"(?im)^\s*(?:requirements|eligibility|required (?:skills|qualifications)|minimum qualifications|what you(?:'|’)ll need)\s*:?[ \t]*$"
+)
+OTHER_HEADING = re.compile(
+    r"(?im)^\s*(?:preferred(?: qualifications| skills)?|nice to have|responsibilities|benefits|what we offer|about us|compensation|salary)\s*:?[ \t]*$"
+)
+OPTIONAL_OR_ALTERNATIVE = re.compile(r"\b(or|either|one of|preferred|optional|bonus|nice to have)\b", re.I)
+MANUAL_CHECKS = (
+    ("Work authorization", re.compile(r"\b(work authorization|legally authori[sz]ed|right to work|visa sponsorship)\b", re.I)),
+    ("Experience duration", re.compile(r"\b\d+\+?\s+years? (?:of )?(?:(?:relevant|professional|industry) )?experience\b", re.I)),
+    ("Education or enrollment", re.compile(r"\b(degree|currently enrolled|recent graduate)\b", re.I)),
+)
+UK_AUTHORIZATION = re.compile(r"\b(?:authori[sz](?:ed|ation)|right|eligibility|eligible)\s+to work in (?:the )?(?:uk|united kingdom)\b", re.I)
+
+
+def _required_text(description: str) -> str:
+    heading = REQUIRED_HEADING.search(description)
+    if heading is None:
+        return ""
+    section = description[heading.end():].strip()
+    end = OTHER_HEADING.search(section)
+    return section[:end.start()] if end else section
 
 
 def normalize_skill(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
-def match_jobs(jobs: list[Job], profile: ConfirmedProfile) -> list[Job]:
+def match_jobs(
+    jobs: list[Job], profile: ConfirmedProfile, details: ApplicationDetails | None = None
+) -> list[Job]:
     confirmed_skills: defaultdict[str, list[ProfileFact]] = defaultdict(list)
     for fact in profile.facts:
         if fact.category == "skills":
@@ -79,11 +103,21 @@ def match_jobs(jobs: list[Job], profile: ConfirmedProfile) -> list[Job]:
     results = []
     for job in jobs:
         rules = REQUIREMENTS.get(job.id)
-        if job.source == "greenhouse":
-            description = normalize_skill(job.description or "")
+        explicitly_required = set()
+        live = job.source != "demo"
+        if live:
+            original = job.description or ""
+            description = normalize_skill(original)
+            required = normalize_skill("\n".join(
+                line for line in _required_text(original).splitlines() if not OPTIONAL_OR_ALTERNATIVE.search(line)
+            ))
             mentioned = tuple(skill for skill, pattern in DESCRIPTION_PATTERNS if pattern.search(description))
-            if mentioned:
-                rules = JobRequirements(skills=mentioned)
+            explicitly_required = {skill.label for skill, pattern in DESCRIPTION_PATTERNS if pattern.search(required)}
+            manual = tuple(label for label, pattern in MANUAL_CHECKS if pattern.search(required))
+            if UK_AUTHORIZATION.search(required):
+                manual = tuple(label for label in manual if label != "Work authorization") + ("UK work authorization",)
+            if mentioned or manual:
+                rules = JobRequirements(skills=mentioned, manual_checks=manual)
         if rules is None:
             results.append(job)
             continue
@@ -99,6 +133,7 @@ def match_jobs(jobs: list[Job], profile: ConfirmedProfile) -> list[Job]:
                 label=skill.label,
                 status="evidence_found" if evidence else "no_confirmed_evidence",
                 evidence=evidence,
+                kind="required_skill" if not live or skill.label in explicitly_required else "mentioned_skill",
             ))
             if evidence:
                 matched_skills += 1
@@ -114,17 +149,34 @@ def match_jobs(jobs: list[Job], profile: ConfirmedProfile) -> list[Job]:
             key=lambda resume: (-len(resume.covered_requirements), resume.filename.casefold(), resume.resume_id),
             default=None,
         )
-        requirements.extend(
-            RequirementMatch(label=label, status="needs_confirmation")
-            for label in rules.manual_checks
-        )
+        for label in rules.manual_checks:
+            authorization = details.uk_work_authorization if label == "UK work authorization" and details else None
+            if authorization is None:
+                requirements.append(RequirementMatch(label=label, status="needs_confirmation", kind="manual_check"))
+            else:
+                requirements.append(RequirementMatch(
+                    label=label, status="evidence_found" if authorization == "authorized" else "not_met",
+                    kind="manual_check", confirmation_source="profile.uk_work_authorization",
+                ))
+        required_results = [item for item in requirements if item.kind == "required_skill"]
+        if any(item.status == "not_met" for item in requirements):
+            eligibility = "not_met"
+        elif any(item.status == "no_confirmed_evidence" for item in required_results):
+            eligibility = "missing_evidence"
+        elif any(item.status == "needs_confirmation" for item in requirements):
+            eligibility = "needs_confirmation"
+        elif requirements and (required_results or rules.manual_checks):
+            eligibility = "listed_requirements_supported"
+        else:
+            eligibility = "not_established"
         match = JobMatch(
             has_confirmed_profile=bool(profile.facts),
             requirements=requirements,
             matched_skills=matched_skills,
             total_skills=len(rules.skills),
             recommended_resume=recommendation,
-            scope="description_mentions" if job.source == "greenhouse" else "listed_requirements",
+            scope="description_mentions" if live else "listed_requirements",
+            eligibility_status=eligibility,
         )
         results.append(job.model_copy(update={"match": match}))
     return results
