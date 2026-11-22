@@ -1,6 +1,7 @@
 """Data models for GetSwydd API."""
-from pydantic import BaseModel, Field, StrictBool
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints, model_validator
 
 from app.resume_models import ProfileFact, ProfileSource
 
@@ -14,8 +15,10 @@ class HealthResponse(BaseModel):
 
 class RequirementMatch(BaseModel):
     label: str
-    status: Literal["evidence_found", "no_confirmed_evidence", "needs_confirmation"]
+    status: Literal["evidence_found", "no_confirmed_evidence", "needs_confirmation", "not_met"]
     evidence: list[ProfileFact] = Field(default_factory=list)
+    kind: Literal["required_skill", "mentioned_skill", "manual_check"] = "mentioned_skill"
+    confirmation_source: Literal["profile.uk_work_authorization"] | None = None
 
 
 class ResumeRecommendation(ProfileSource):
@@ -29,6 +32,36 @@ class JobMatch(BaseModel):
     total_skills: int
     recommended_resume: ResumeRecommendation | None = None
     scope: Literal["listed_requirements", "description_mentions"] = "listed_requirements"
+    eligibility_status: Literal[
+        "not_established", "needs_confirmation", "missing_evidence", "listed_requirements_supported", "not_met"
+    ] = "not_established"
+
+
+JobSource = Literal["demo", "greenhouse", "lever", "ashby"]
+Workplace = Literal["remote", "hybrid", "onsite"]
+Employment = Literal["internship", "full_time", "part_time", "contract", "temporary"]
+ExperienceLevel = Literal["intern", "entry", "mid", "senior"]
+PayPeriod = Literal["hour", "week", "month", "year", "one_time"]
+Currency = Annotated[str, StringConstraints(to_upper=True, pattern=r"^[A-Z]{3}$")]
+
+
+class PayFloor(BaseModel):
+    amount: float = Field(gt=0, allow_inf_nan=False)
+    currency: Currency
+    period: PayPeriod
+
+
+class CompensationRange(BaseModel):
+    minimum: float = Field(ge=0, allow_inf_nan=False)
+    maximum: float = Field(ge=0, allow_inf_nan=False)
+    currency: Currency
+    period: PayPeriod
+
+    @model_validator(mode="after")
+    def range_is_ordered(self) -> "CompensationRange":
+        if self.minimum > self.maximum:
+            raise ValueError("Compensation minimum cannot exceed maximum.")
+        return self
 
 
 class Job(BaseModel):
@@ -42,17 +75,67 @@ class Job(BaseModel):
     description: Optional[str] = Field(default=None, description="Brief description of the role")
     posted_date: Optional[str] = Field(default=None, description="Date posted in ISO format")
     match: JobMatch | None = None
-    source: Literal["demo", "greenhouse"] = "demo"
+    source: JobSource = "demo"
     application_mode: Literal["demo", "assisted"] = "demo"
     apply_url: str | None = None
     source_updated_at: str | None = None
     source_fetched_at: str | None = None
+    workplace: Workplace | None = None
+    employment: Employment | None = None
+    experience_level: ExperienceLevel | None = None
+    additional_locations: list[str] = Field(default_factory=list)
+    compensation: list[CompensationRange] = Field(default_factory=list)
+    application_deadline: str | None = None
 
 
 class JobListResponse(BaseModel):
     """Response model for job listing endpoint."""
     total: int = Field(..., description="Total number of jobs returned")
     jobs: List[Job] = Field(..., description="List of jobs")
+
+
+SearchTerm = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120, pattern=r"\w")]
+SearchTerms = Annotated[list[SearchTerm], Field(max_length=10)]
+
+
+class JobSearchPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role_keywords: SearchTerms = Field(default_factory=list)
+    location_keywords: SearchTerms = Field(default_factory=list)
+    internships_only: StrictBool = False
+    workplace_modes: list[Workplace] = Field(default_factory=list)
+    employment_types: list[Employment] = Field(default_factory=list)
+    experience_levels: list[ExperienceLevel] = Field(default_factory=list)
+    minimum_pay: PayFloor | None = None
+    include_unknown: StrictBool = False
+
+
+class JobAlert(BaseModel):
+    id: str
+    job_id: str
+    job_title: str
+    company: str
+    location: str
+    apply_url: str | None
+    application_deadline: str | None
+    created_at: str
+    read_at: str | None = None
+
+
+class AnalyzeJobRequest(BaseModel):
+    use_semantic: StrictBool = False
+
+
+class SemanticResumeMatch(ProfileSource):
+    similarity: float
+
+
+class JobAnalysis(BaseModel):
+    job: Job
+    summary: str
+    semantic_status: Literal["disabled", "not_configured", "insufficient_data", "available", "unavailable"]
+    semantic_resume_matches: list[SemanticResumeMatch] = Field(default_factory=list)
 
 
 class AnswerEvidence(BaseModel):

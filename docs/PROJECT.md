@@ -46,6 +46,10 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 ### Phase 4: Integrations & Job Tracking
 - [x] Import configured public Greenhouse boards into the backend and expose assisted application links.
 - [x] Prepare local drafts for Greenhouse jobs and track user-reported submissions.
-- [ ] Authorized job board and employer integrations.
-- [ ] Job alerts and deadline tracking.
+- [x] Save role and location preferences and filter or rank real jobs by confirmed skill evidence.
+- [x] Search configured Greenhouse, Lever, and Ashby boards in one catalog.
+- [x] Filter by workplace, employment type, experience, compensation, and closing date when listed.
+- [x] Explain recognized job requirements and offer opt-in semantic resume comparison.
+- [x] Refresh job listings on a schedule and retain deduplicated saved-search alerts.
+- [ ] Add an authorized employer submission integration.
 - [ ] Application status Kanban dashboard.
