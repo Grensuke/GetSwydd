@@ -115,7 +115,7 @@ export function PreferencesDrawer({ open, onClose, onSavedPreferences }: Prefere
             <p className="text-xs text-ink leading-relaxed font-serif italic">{summaryLine}</p>
           </div>
           <TagInput label="ROLE KEYWORDS" tags={prefs.role_keywords} onChange={(t) => setPrefs({ ...prefs, role_keywords: t })} placeholder="e.g. Python, Data Analyst" />
-          <TagInput label="LOCATION KEYWORDS" tags={prefs.location_keywords} onChange={(t) => setPrefs({ ...prefs, location_keywords: t })} placeholder="e.g. London, Remote, Cardiff" />
+          <TagInput label="LOCATION KEYWORDS" tags={prefs.location_keywords} onChange={(t) => setPrefs({ ...prefs, location_keywords: t })} placeholder="e.g. India, Bengaluru, Hyderabad" />
           <PrefsGroup label="WORKPLACE MODES" options={WORKPLACE_OPTIONS} selected={prefs.workplace_modes} onChange={(v) => setPrefs({ ...prefs, workplace_modes: v })} />
           <PrefsGroup label="EMPLOYMENT TYPES" options={EMPLOYMENT_OPTIONS} selected={prefs.employment_types} onChange={(v) => setPrefs({ ...prefs, employment_types: v })} />
           <PrefsGroup label="EXPERIENCE LEVELS" options={EXPERIENCE_OPTIONS} selected={prefs.experience_levels} onChange={(v) => setPrefs({ ...prefs, experience_levels: v })} />

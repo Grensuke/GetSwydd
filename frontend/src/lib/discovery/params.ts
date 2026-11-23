@@ -11,6 +11,7 @@ import { DEFAULT_PAGE_SIZE, type SourceValue } from "./options";
 
 export interface DiscoveryParams {
   source: SourceValue;
+  market: NonNullable<JobListParams["market"]>;
   q: string;
   location: string;
   internshipsOnly: boolean;
@@ -25,7 +26,8 @@ export interface DiscoveryParams {
 }
 
 export const DEFAULT_PARAMS: DiscoveryParams = {
-  source: "all",
+  source: "live",
+  market: "india",
   q: "",
   location: "",
   internshipsOnly: false,
@@ -59,6 +61,7 @@ export function parseSearchParams(sp: URLSearchParams): DiscoveryParams {
 
   return {
     source: (sourceRaw && VALID_SOURCES.includes(sourceRaw as SourceValue) ? sourceRaw : DEFAULT_PARAMS.source) as SourceValue,
+    market: sp.get("market") === "all" ? "all" : DEFAULT_PARAMS.market,
     q: sp.get("q") ?? "",
     location: sp.get("location") ?? "",
     internshipsOnly: sp.get("internshipsOnly") === "true",
@@ -76,6 +79,7 @@ export function parseSearchParams(sp: URLSearchParams): DiscoveryParams {
 export function toSearchParams(params: DiscoveryParams): URLSearchParams {
   const sp = new URLSearchParams();
   if (params.source !== DEFAULT_PARAMS.source) sp.set("source", params.source);
+  if (params.market !== DEFAULT_PARAMS.market) sp.set("market", params.market);
   if (params.q) sp.set("q", params.q);
   if (params.location) sp.set("location", params.location);
   if (params.internshipsOnly) sp.set("internshipsOnly", "true");
@@ -98,6 +102,7 @@ export function toSearchParams(params: DiscoveryParams): URLSearchParams {
 export function toApiParams(params: DiscoveryParams): JobListParams {
   return {
     source: params.source,
+    market: params.source === "demo" ? "all" : params.market,
     q: params.q || undefined,
     location: params.location || undefined,
     internships_only: params.internshipsOnly || undefined,

@@ -62,10 +62,11 @@ export function useDiscoveryParams() {
 
   const setParam = useCallback(
     <K extends keyof DiscoveryParams>(key: K, value: DiscoveryParams[K]) => {
-      const next = { ...params, [key]: value, page: 1 };
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      const next = { ...params, q: draftQ, location: draftLocation, [key]: value, page: 1 };
       replaceParams(next);
     },
-    [params, replaceParams]
+    [params, draftQ, draftLocation, replaceParams]
   );
 
   const setParams = useCallback(
@@ -113,8 +114,8 @@ export function useDiscoveryParams() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setDraftQ("");
     setDraftLocation("");
-    replaceParams({ ...DEFAULT_PARAMS, source: params.source });
-  }, [params.source, replaceParams]);
+    replaceParams({ ...DEFAULT_PARAMS, source: params.source, market: params.market });
+  }, [params.source, params.market, replaceParams]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;

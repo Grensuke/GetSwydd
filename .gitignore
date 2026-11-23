@@ -48,6 +48,7 @@ venv.bak/
 uploads/
 resumes/
 !/frontend/src/app/resumes/
+!/frontend/src/components/resumes/
 *.pdf
 *.docx
 !docs/**/*.pdf

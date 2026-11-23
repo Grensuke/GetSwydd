@@ -1,127 +1,78 @@
 # GetSwydd
 
-GetSwydd is a full-stack job search and application assistant designed for candidates seeking high-signal career opportunities with responsible, explainable preparation and approved submissions.
+GetSwydd is a local job search and application assistant. Upload and review resumes, find jobs on configured employer boards, compare job requirements with confirmed resume facts, and prepare an application for review.
 
----
+- **Backend (`api/`)** runs on Python 3.12+, FastAPI, and SQLite. It handles resume review, the demo and live catalogs, matching, saved searches, alerts, and application drafts.
+- **Frontend (`frontend/`)** uses Next.js, TypeScript, and Tailwind CSS. The local UI includes structured and AI job search, saved preferences, alerts, resume review, assisted drafts, and an application tracker with list and Kanban views.
+- **Product documentation** covers [project status and roadmap](docs/PROJECT.md) and the [API contract](docs/api-contract.md). The [frontend guide](frontend/README.md) links to the frontend report and release notes.
 
-## Architecture Overview
+## Run locally on Windows
 
-- **`api/`**: Python 3.12+ backend powered by [FastAPI](https://fastapi.tiangolo.com/) and [Pydantic](https://docs.pydantic.dev/). Provides health checks and validated synthetic job listings with CORS configured for `http://localhost:3000`.
-- **`frontend/`**: Modern frontend built with [Next.js](https://nextjs.org/) (App Router), TypeScript, Tailwind CSS, and npm. Features loading skeletons, empty state fallback, error diagnosis, and rich job opportunity cards.
-- **`docs/`**: Product roadmap, core rules, API specifications, and frontend documentation.
-  - [frontend/docs/README.md](file:///c:/Users/bakht/GetSwydd/frontend/docs/README.md): Frontend documentation overview and architectural guide.
-  - [frontend/docs/FRONTEND-COMPLETE-REPORT.md](file:///c:/Users/bakht/GetSwydd/frontend/docs/FRONTEND-COMPLETE-REPORT.md): Authoritative consolidated frontend report.
-  - [Phase 1 Changelog](file:///c:/Users/bakht/GetSwydd/frontend/docs/PHASE-1-CHANGELOG.md): Design tokens, UI primitives, app shell, and typed API layer.
-  - [Phase 2 Changelog](file:///c:/Users/bakht/GetSwydd/frontend/docs/PHASE-2-CHANGELOG.md): Opportunity discovery engine, preferences, alerts, and job analysis.
-  - [Phase 3 Changelog](file:///c:/Users/bakht/GetSwydd/frontend/docs/PHASE-3-CHANGELOG.md): Application workflow, unified tracker, status model, board view, and dark mode.
-  - [docs/PROJECT.md](file:///c:/Users/bakht/GetSwydd/docs/PROJECT.md): Product vision, roadmap, and foundational rules.
-  - [docs/api-contract.md](file:///c:/Users/bakht/GetSwydd/docs/api-contract.md): Endpoint contract and next-milestone specification.
+### Backend
 
----
+In PowerShell, start in the repository root. The copy command creates a local configuration file on first run and preserves an existing one.
 
-## Core Product Rules
+```powershell
+Set-Location .\api
+if (-not (Test-Path '.\.venv\Scripts\python.exe')) { python -m venv .venv }
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --env-file .env --reload
+```
 
-1. **Use Verified Facts for Application Answers**: Qualifications and claims are anchored exclusively in verified user profiles. The assistant never invents or exaggerates credentials.
-2. **Require User Approval Before Submission**: Submissions are never dispatched automatically. The candidate must explicitly review and confirm all answers and attachments.
-3. **Use Assisted Mode When Automation is Unsupported**: When direct employer/portal APIs are unavailable, GetSwydd provides guided packets and pre-fills rather than brittle, unauthorized scrapers.
+Open [Swagger](http://127.0.0.1:8000/docs) to try the API or [check backend health](http://127.0.0.1:8000/health). Demo jobs, resume review, local matching, and draft preparation are available without a model key.
 
----
+### Frontend
 
-## Quickstart (Windows PowerShell)
+In a second PowerShell terminal, start in the repository root.
 
-Follow these exact commands to install dependencies and run both servers locally in separate PowerShell terminals.
+```powershell
+Set-Location .\frontend
+npm.cmd ci
+npm.cmd run dev -- --port 3000
+```
 
-### Terminal 1: Backend (FastAPI)
+Open [GetSwydd](http://localhost:3000). The frontend defaults to `http://127.0.0.1:8000`. To override it, set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` using the template in `frontend/.env.example`.
 
-1. Open PowerShell and navigate to the project repository:
-   ```powershell
-   cd c:\Users\STARK\Documents\GetSwydd\api
-   ```
+## Browse jobs in India
 
-2. Create and activate a Python virtual environment:
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ```
+The frontend opens the live catalog with **India and worldwide remote** selected. It includes jobs with an Indian city or India in the listed location and roles explicitly open worldwide. Choose **All locations** for international listings. The **Demo** source opens the sample catalog. Compensation preferences use INR by default.
 
-3. Install backend dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
+For an existing setup, update `GETSWYDD_GREENHOUSE_BOARDS` in `api/.env` using the starter map below. The feeds are public employer boards. Keep up to five entries in the Greenhouse map. Restart the backend, then select **Refresh sources** on the job search page to import the listings.
 
-4. Run tests:
-   ```powershell
-   pytest -v
-   ```
+```dotenv
+GETSWYDD_GREENHOUSE_BOARDS='{"razorpaysoftwareprivatelimited":"Razorpay","hackerrank":"HackerRank","enterpret":"Enterpret","instawork":"Instawork"}'
+```
 
-5. Start the FastAPI development server:
-   ```powershell
-   uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-   ```
+## Try live job discovery with Groq
 
-   - API Health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-   - Interactive Docs (Swagger): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-   - Jobs Endpoint: [http://127.0.0.1:8000/api/v1/jobs](http://127.0.0.1:8000/api/v1/jobs)
+Create a key in the [Groq Console](https://console.groq.com/keys). Add or update these entries in `api/.env`, then restart the backend. Use `api/.env.example` as the template and keep real keys in `api/.env`.
 
----
+```dotenv
+GETSWYDD_DISCOVERY_PROVIDER=groq
+GETSWYDD_DISCOVERY_MODEL=openai/gpt-oss-20b
+GROQ_API_KEY=replace_with_your_key
+```
 
-### Terminal 2: Frontend (Next.js)
+The agent searches the configured Greenhouse, Lever, and Ashby feeds. Check the [API contract](docs/api-contract.md#11-unified-job-discovery-and-analysis) for board setup.
 
-1. Open a second PowerShell terminal and navigate to the frontend directory:
-   ```powershell
-   cd frontend
-   ```
+On the Discover page, open **Search with AI** and choose **Use example**, then **Find jobs**. The agent refreshes the configured feeds and returns a ranked shortlist with links to the listings. The **Employer feeds checked** section shows which boards were used.
 
-2. (Optional) Set up environment variables if modifying the API target:
-   ```powershell
-   Copy-Item .env.example .env.local
-   ```
+In [Swagger](http://127.0.0.1:8000/docs), open `POST /api/v1/agents/job-discovery`, select **Try it out**, and send this request.
 
-3. Install frontend dependencies:
-   ```powershell
-   npm install
-   ```
+```json
+{
+  "message": "Ignore my saved preferences and find two internships in India.",
+  "limit": 2,
+  "refresh": true
+}
+```
 
-4. Run frontend verification:
-   ```powershell
-   npm run lint
-   npm run build
-   ```
+A successful search returns HTTP 200. The match count depends on the catalog. `total_matches` counts all matches and `jobs` contains up to two entries for this request. If the response has no results, check `refresh_sources` and the applied filters. The [agent API contract](docs/api-contract.md#12-job-discovery-agent) covers provider configuration, response states, and errors.
 
-5. Start the Next.js development server:
-   ```powershell
-   npm run dev
-   ```
+## Development checks
 
-6. Open your browser:
-   - Web Application: [http://localhost:3000](http://localhost:3000)
+- From `api/`, run `.\.venv\Scripts\python.exe -m pytest -q`.
+- From `frontend/`, run `npm.cmd run lint` and `npm.cmd run build`.
 
----
-
-## Environment Configuration
-
-- **API (`api/.env.example`)**:
-  ```env
-  HOST=127.0.0.1
-  PORT=8000
-  FRONTEND_ORIGIN=http://localhost:3000
-  ```
-
-- **Frontend (`frontend/.env.example`)**:
-  ```env
-  NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-  ```
-
----
-
-## Phase 1 Frontend Complete
-
-The foundational Phase 1 frontend redesign is complete, introducing the quiet editorial design system, global app shell, typed API layer for all 24 backend endpoints, and the candidate profile editor:
-- **Full Phase 1 Documentation & QA Checklist:** [docs/frontend/PHASE-1-CHANGELOG.md](file:///c:/Users/bakht/GetSwydd/docs/frontend/PHASE-1-CHANGELOG.md)
-
----
-
-## Phase 2 Frontend Complete
-
-Phase 2 delivered the full opportunity discovery engine, persistent search preferences, real-time unread alert popovers and ledger, deep job qualification analysis with evidence provenance, and the deadline radar:
-- **Full Phase 2 Documentation & QA Checklist:** [docs/frontend/PHASE-2-CHANGELOG.md](file:///c:/Users/bakht/GetSwydd/docs/frontend/PHASE-2-CHANGELOG.md)
+Real employer applications use assisted mode. GetSwydd prepares the materials, and the candidate completes the employer's form. The approval and submission test flow writes to a local test inbox.

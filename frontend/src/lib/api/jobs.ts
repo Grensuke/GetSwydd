@@ -5,6 +5,8 @@ import type {
   HealthResponse,
   JobAlert,
   JobAlertListParams,
+  JobDiscoveryRequest,
+  JobDiscoveryResult,
   JobAnalysis,
   JobListParams,
   JobListResponse,
@@ -29,6 +31,13 @@ export function listJobs(params?: JobListParams, signal?: AbortSignal): Promise<
     params as Record<string, string | number | boolean | (string | number | boolean)[] | null | undefined>
   );
   return requestJson<JobListResponse>(`/api/v1/jobs${query}`, { signal });
+}
+
+export function discoverJobs(request: JobDiscoveryRequest): Promise<JobDiscoveryResult> {
+  return requestJson<JobDiscoveryResult>("/api/v1/agents/job-discovery", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
 }
 
 /**

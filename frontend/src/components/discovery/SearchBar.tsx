@@ -56,7 +56,7 @@ export function SearchBar({
           <Input
             id="search-location"
             type="search"
-            placeholder="London, Cardiff, Remote"
+            placeholder="Bengaluru, Hyderabad, Pune"
             value={location}
             onChange={(e) => onLocationChange(e.target.value)}
           />

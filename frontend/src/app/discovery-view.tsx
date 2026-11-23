@@ -5,7 +5,7 @@ import { listJobs } from "@/lib/api";
 import type { JobListResponse, Workplace } from "@/lib/api/types";
 import { useAsync } from "@/lib/hooks/useAsync";
 import { useDiscoveryParams, toApiParams } from "@/lib/discovery";
-import { Panel } from "@/components/ui";
+import { Panel, Select } from "@/components/ui";
 import {
   SourceTabs,
   SearchBar,
@@ -14,6 +14,7 @@ import {
   PreferencesDrawer,
 } from "@/components/discovery";
 import { DiscoveryToolbar } from "@/components/discovery/DiscoveryToolbar";
+import { AgentDiscovery } from "@/components/discovery/AgentDiscovery";
 import { ResultsRegion } from "@/components/discovery/ResultsRegion";
 import { MobileFilterSheet } from "@/components/discovery/MobileFilterSheet";
 
@@ -80,11 +81,27 @@ export function DiscoveryView() {
 
   return (
     <div>
+      <AgentDiscovery onSourcesRefreshed={reload} />
       <SourceTabs
         value={params.source}
         onChange={(s) => setParam("source", s)}
         className="mb-4"
       />
+
+      {params.source !== "demo" && (
+        <div className="mb-4 flex items-center gap-3">
+          <label htmlFor="discovery-market" className="eyebrow">Job market</label>
+          <Select
+            id="discovery-market"
+            className="max-w-60"
+            value={params.market}
+            onChange={(event) => setParam("market", event.currentTarget.value === "all" ? "all" : "india")}
+          >
+            <option value="india">India and worldwide remote</option>
+            <option value="all">All locations</option>
+          </Select>
+        </div>
+      )}
 
       <SearchBar
         q={draftQ}
@@ -158,6 +175,7 @@ export function DiscoveryView() {
             pageSize={params.pageSize}
             activeFilterCount={activeFilterCount}
             source={params.source}
+            market={params.market}
             isRefetching={isRefetching}
             onRetry={reload}
             onClearFilters={resetFilters}

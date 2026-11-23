@@ -104,7 +104,8 @@ export function formatCompensation(ranges: CompensationRange[] | null | undefine
   const period = periodLabel[range.period] || range.period;
 
   try {
-    const formatter = new Intl.NumberFormat("en-US", {
+    const locale = range.currency === "INR" ? "en-IN" : "en-US";
+    const formatter = new Intl.NumberFormat(locale, {
       style: "currency",
       currency: range.currency,
       maximumFractionDigits: 0,

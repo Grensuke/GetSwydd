@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import type { Job, JobListResponse } from "@/lib/api/types";
+import type { Job, JobListParams, JobListResponse } from "@/lib/api/types";
 import { Button, EmptyState, ErrorState, Panel, Skeleton } from "@/components/ui";
 import { JobCard } from "@/components/jobs/JobCard";
 import { DeadlineRadar } from "./DeadlineRadar";
 import { Pagination } from "./Pagination";
+import { RefreshButton } from "./RefreshButton";
 import { cn } from "@/lib/cn";
 
 export interface ResultsRegionProps {
@@ -18,6 +19,7 @@ export interface ResultsRegionProps {
   pageSize: number;
   activeFilterCount: number;
   source: string;
+  market: NonNullable<JobListParams["market"]>;
   isRefetching: boolean;
   onRetry: () => void;
   onClearFilters: () => void;
@@ -35,6 +37,7 @@ export function ResultsRegion({
   pageSize,
   activeFilterCount,
   source,
+  market,
   isRefetching,
   onRetry,
   onClearFilters,
@@ -102,14 +105,12 @@ export function ResultsRegion({
         title="No listings yet."
         description={
           isLive
-            ? "The catalog returned zero listings. Live sources need configuring on the backend (e.g. GETSWYDD_GREENHOUSE_BOARDS) or the feed may need refreshing."
-            : "No demo postings found in the synthetic catalog. Check back later or refresh the feed."
+            ? market === "india"
+              ? "Refresh the configured job boards or select All locations to broaden your search."
+              : "Refresh the configured job boards to import listings."
+            : "No demo postings were found."
         }
-        action={
-          <Button variant="secondary" size="sm" onClick={onRetry}>
-            Refresh sources
-          </Button>
-        }
+        action={isLive && <RefreshButton onRefreshComplete={onRetry} />}
       />
     );
   }

@@ -3,9 +3,10 @@
 This document specifies the REST API contract implemented in the FastAPI backend (`api/`) for GetSwydd, including job discovery and the application drafting flow.
 
 ## Base URL & Configuration
-- **Local Development:** `http://127.0.0.1:8000`
-- **Allowed Frontend Origins:** `http://localhost:3000`, `http://127.0.0.1:3000`
-- **Persistence:** SQLite (`getswydd.db`), surviving server restarts.
+
+- The local API runs at `http://127.0.0.1:8000`. Start it with `--env-file .env` from `api/` as shown in the [README](../README.md#backend).
+- The API allows local frontend requests from `http://localhost:3000` and `http://127.0.0.1:3000`.
+- SQLite persists the catalog, profile, and drafts across restarts. The default database filename is `getswydd.db`.
 
 ---
 
@@ -30,13 +31,13 @@ Checks service availability.
 ---
 
 ### 1.2 Job Catalog
-Retrieves open job opportunities.
+Lists demo roles by default. Use `source=live` for configured public employer feeds or `source=all` to include both. See [live discovery](#11-unified-job-discovery-and-analysis) for refreshing the catalog.
 
 - **Route:** `GET /api/v1/jobs`
 - **Method:** `GET`
 - **Status Code:** `200 OK`
 
-#### Response:
+#### Demo response excerpt
 ```json
 {
   "total": 2,
@@ -381,7 +382,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/v1/jobs?source=greenhouse"
 
 An invalid board configuration returns `503` on Greenhouse-specific queries. Greenhouse receives public listing and form reads. Candidate details and resumes stay local.
 
-## 9. Assisted Applications for Greenhouse Jobs
+## 9. Assisted Applications for Live Jobs
 
 Send the imported job ID and a reviewed resume ID to `POST /api/v1/applications/drafts`:
 
@@ -393,6 +394,8 @@ Send the imported job ID and a reviewed resume ID to `POST /api/v1/applications/
 ```
 
 On `201`, the existing draft response includes `mode: "assisted"`, the selected resume, confirmed name, and `apply_url`. Show **Open employer application** using the returned URL. A missing reviewed resume or confirmed candidate name returns `409`. A job outside the configured, cached listings returns `404`. If Greenhouse confirms the posting closed, creation returns `409` and asks for a job refresh.
+
+Greenhouse drafts can include imported questions. Lever and Ashby drafts return `form_status: "unavailable"` and direct the candidate to the employer's form.
 
 | Field | Frontend behavior |
 |---|---|
@@ -440,7 +443,8 @@ Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, a
 | Parameter | Behavior |
 |---|---|
 | `q` | Requires all query words to appear in the job title or company name. |
-| `location` | Requires all query words to appear in the provider's location text. |
+| `location` | Matches the provider's location text. Recognized Indian city names also match `India`. Common alternate names such as Bangalore and Bengaluru are equivalent. |
+| `market=india` | Keeps listings with recognized Indian locations or explicit worldwide availability. Bare remote listings need location evidence. The public API defaults to `market=all`. |
 | `use_preferences=true` | Applies saved role and location keywords. Words within each entry must all match. Entries in a category are alternatives, and the role and location categories both apply. |
 | `internships_only=true` | Keeps listings with Intern or Internship in the title, including plurals. An explicit value overrides the saved internship setting. |
 | `sort=match` | Orders jobs by confirmed skill count and then by the share of recognized skills confirmed. Ties preserve catalog order. |
@@ -450,12 +454,12 @@ Example for the frontend's personalized listings view: `GET /api/v1/jobs?source=
 
 ## 11. Unified Job Discovery and Analysis
 
-Set any of these JSON board maps in the terminal that starts FastAPI. The map key is the board token from the employer's official careers link. Each provider accepts up to five boards.
+Set the JSON board maps in `api/.env` and restart FastAPI with `--env-file .env`. The map key is the board token from the employer's official careers link. Each provider accepts up to five boards.
 
-```powershell
-$env:GETSWYDD_GREENHOUSE_BOARDS = '{"mozilla":"Mozilla"}'
-$env:GETSWYDD_LEVER_BOARDS = '{"palantir":"Palantir"}'
-$env:GETSWYDD_ASHBY_BOARDS = '{"linear":"Linear"}'
+```dotenv
+GETSWYDD_GREENHOUSE_BOARDS='{"mozilla":"Mozilla"}'
+GETSWYDD_LEVER_BOARDS='{"palantir":"Palantir"}'
+GETSWYDD_ASHBY_BOARDS='{"linear":"Linear"}'
 ```
 
 The Lever adapter reads the global public Postings API. The Ashby adapter imports publicly listed postings. All providers use official application links. Candidate details are kept local during job refresh. Greenhouse can provide assisted screening questions, and Lever and Ashby drafts link users to the official form for completion.
@@ -499,3 +503,52 @@ Resume recommendations use confirmed skill evidence and work without a model key
 ### Automatic refresh
 
 Set `GETSWYDD_SEARCH_INTERVAL_MINUTES` to a value from 5–1440 to start periodic refresh while the API is running with one worker. The default is 0 (manual refresh). Existing cached postings establish the alert baseline on upgrade. Alerts are created when new listings match a saved filter, and one canonical apply link produces at most one alert. Listings already seen remain in search results if they match the current filters.
+
+## 12. Job Discovery Agent
+
+Use `POST /api/v1/agents/job-discovery` with `Content-Type: application/json` once a live board is configured. Set `GETSWYDD_DISCOVERY_PROVIDER` and the matching API key in `api/.env`. The [README smoke test](../README.md#try-live-job-discovery-with-groq) shows a live Groq request.
+
+| Provider | API key | Default model |
+|---|---|---|
+| `openai` (default) | `GETSWYDD_AGENT_OPENAI_API_KEY` or `GETSWYDD_OPENAI_API_KEY` | `gpt-4.1-mini` |
+| `groq` | `GROQ_API_KEY` | `openai/gpt-oss-20b` |
+
+Leave `GETSWYDD_DISCOVERY_MODEL` blank to use the selected provider's default. A model override must support strict Structured Outputs on Chat Completions. Provider selection applies to discovery. The separate opt-in semantic comparison uses OpenAI embeddings.
+
+```json
+{
+  "message": "Find remote Python internships I can apply to from India using my backend resume",
+  "limit": 5,
+  "refresh": false
+}
+```
+
+`message` is required and accepts 1–1,500 characters after trimming. The other fields are optional. Use `resume_id` from `GET /api/v1/resumes` when the user picks a reviewed upload. The user can also name a resume in the message, which the agent resolves locally. When the user leaves the resume unspecified, matching uses the combined confirmed profile. Each request is self-contained. After a clarification, resubmit the full search with the clarified details or selected resume ID.
+
+By default the agent reads the local live-job catalog and returns up to five results. The `limit` field accepts 1–10 and caps any count requested in the message. `total_matches` counts all matches before that cap. Explicit filters override the corresponding saved preferences. The remaining preferences apply unless the user asks to ignore them.
+
+Use `refresh: true` for an explicit feed refresh. Read `refresh_sources` for each board's refresh outcome. If `refresh_in_progress` is true, another refresh is running and the response uses the available catalog.
+
+| Response | Frontend action |
+|---|---|
+| `status: "results"` | Show the applied `filters`, `total_matches`, and returned `jobs`. Use `jobs[].job_id` and a reviewed resume ID to [create an assisted draft](#9-assisted-applications-for-live-jobs). Open the employer page using `jobs[].apply_url`. Display evidence from `jobs[].match` when present. |
+| `status: "needs_clarification"` | Display `message` as plain text and offer `resume_options` when supplied. |
+| `status: "no_results"` | Show `message` and the applied filters. Offer a feed refresh when the catalog is empty. |
+| `status: "out_of_scope"` | Explain that the agent handles discovery and fit comparison. Use the existing application-draft workflow for preparation and approval. |
+
+Each result includes `applicant_location_check.status` of `listed_location`, `needs_confirmation`, or `not_requested`. `listed_location` means the location text explicitly covers the requested place or says the job is worldwide. Display the supplied evidence. Treat unqualified remote listings as needing confirmation. Location evidence is separate from legal work authorization.
+
+For searches with no specified or saved location, the agent ranks India and explicit worldwide listings before other locations among jobs that pass the same eligibility checks. Explicit search locations still apply. The model receives the search message and the agent's role instructions to produce the plan. Job results and URLs come from the configured public catalog. Resume matching and work-authorization checks use existing local services. Uploaded files, confirmed profile details, and API keys are excluded from the model's messages. Render all returned text as plain text and use the separate `apply_url` field for the employer link.
+
+Display the returned `detail` message when it is text. FastAPI validation failures use an array in `detail`.
+
+| HTTP status | Meaning |
+|---|---|
+| `200` | The request produced one of the four response states above. |
+| `422` | The request body failed validation. |
+| `429` | The model provider rate-limited the request. |
+| `502` | The provider call failed or returned an unusable search plan. |
+| `503` | The model key is missing or invalid, the provider selection or board configuration is invalid, model access is unavailable, or the provider reports exhausted API quota. |
+| `504` | The model provider request timed out. |
+
+If the model provider is unavailable, the UI can still offer structured filters through `GET /api/v1/jobs?source=live` and use the draft endpoints.

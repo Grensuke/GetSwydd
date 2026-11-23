@@ -17,10 +17,10 @@ const PAY_PERIODS: { value: PayPeriod; label: string }[] = [
   { value: "year", label: "Per year" },
 ];
 
-const CURRENCY_OPTIONS = ["GBP", "USD", "EUR", "CAD", "AUD"];
+const CURRENCY_OPTIONS = ["INR", "USD", "GBP", "EUR", "CAD", "AUD"];
 
 export function PreferencesPayFields({ minimumPay, error, onChange }: PreferencesPayFieldsProps) {
-  const isEnabled = minimumPay !== null;
+  const isEnabled = Boolean(minimumPay);
 
   return (
     <div className="border-t border-hairline pt-4 space-y-3">
@@ -30,7 +30,7 @@ export function PreferencesPayFields({ minimumPay, error, onChange }: Preference
         onChange={(e) => {
           onChange(
             e.target.checked
-              ? { amount: 30000, currency: "GBP", period: "year" }
+              ? { amount: 20000, currency: "INR", period: "month" }
               : null
           );
         }}

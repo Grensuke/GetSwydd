@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.discovery_routes import router as discovery_router
 from app.db import (
     DraftConflict,
     deliver_to_test_employer,
@@ -95,6 +96,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(resume_router)
+app.include_router(discovery_router)
 
 # Synthetic job catalog
 SYNTHETIC_JOBS: List[Job] = [
@@ -132,6 +134,7 @@ def get_jobs(
     source: Literal["demo", "greenhouse", "lever", "ashby", "live", "all"] = "demo",
     q: str = Query(default="", max_length=120),
     location: str = Query(default="", max_length=120),
+    market: Literal["all", "india"] = "all",
     internships_only: bool | None = None,
     workplace: Workplace | None = None,
     employment: Employment | None = None,
@@ -159,7 +162,7 @@ def get_jobs(
         preferences.experience_levels = [experience_level]
     filtered = filter_jobs(
         jobs, preferences, query=q, location=location,
-        internships_only=internships_only, closing_within_days=closing_within_days,
+        internships_only=internships_only, closing_within_days=closing_within_days, market=market,
     )
     profile = get_confirmed_profile()
     details = get_application_details()

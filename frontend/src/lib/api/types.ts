@@ -138,6 +138,7 @@ export interface JobListResponse {
 
 export interface JobListParams {
   source?: "demo" | "greenhouse" | "lever" | "ashby" | "live" | "all";
+  market?: "india" | "all";
   q?: string;
   location?: string;
   internships_only?: boolean;
@@ -177,6 +178,45 @@ export interface SourceRefresh extends BoardRefresh {
 export interface JobRefreshResult {
   sources: SourceRefresh[];
   new_alerts: number;
+}
+
+export interface JobDiscoveryRequest {
+  message: string;
+  resume_id?: string;
+  limit?: number;
+  refresh?: boolean;
+}
+
+export interface DiscoveryJob {
+  job_id: string;
+  title: string;
+  company: string;
+  location: string;
+  source: ExternalSource;
+  apply_url: string;
+  application_deadline: string | null;
+  match: JobMatch | null;
+  applicant_location_check: {
+    status: "not_requested" | "listed_location" | "needs_confirmation";
+    evidence: string | null;
+  };
+}
+
+export interface JobDiscoveryResult {
+  status: "results" | "no_results" | "needs_clarification" | "out_of_scope";
+  message: string;
+  filters: {
+    preferences: JobSearchPreferences;
+    company_keywords: string[];
+    skill_groups: string[][];
+    applicant_location: string | null;
+  } | null;
+  selected_resume: ProfileSource | null;
+  resume_options: ProfileSource[];
+  jobs: DiscoveryJob[];
+  total_matches: number;
+  refresh_sources: SourceRefresh[];
+  refresh_in_progress: boolean;
 }
 
 export interface JobAlert {
