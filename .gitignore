@@ -47,7 +47,8 @@ venv.bak/
 # Resumes and user uploaded files
 uploads/
 resumes/
-!/web/src/app/resumes/
+!/frontend/src/app/resumes/
+!/frontend/src/components/resumes/
 *.pdf
 *.docx
 !docs/**/*.pdf

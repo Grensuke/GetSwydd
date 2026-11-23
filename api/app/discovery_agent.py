@@ -1,6 +1,5 @@
 """Read-oriented discovery workflow over the GetSwydd live catalog."""
 import os
-import re
 from pathlib import PurePath
 from typing import Literal, TypedDict
 
@@ -15,7 +14,10 @@ from app.discovery_models import (
     DiscoveryFilters, DiscoveryJob, DiscoveryPlan, DiscoveryRequest, DiscoveryResponse, LocationCheck,
 )
 from app.job_alerts import RefreshBusy, refresh_catalog
-from app.job_search import filter_jobs, match_sort_key, search_tokens
+from app.job_search import (
+    LOCATION_LIMITS, WORLDWIDE_LOCATIONS, filter_jobs, india_location_evidence,
+    location_statements, match_sort_key, search_tokens,
+)
 from app.job_sources import PUBLIC_SOURCES, live_jobs
 from app.matching import match_jobs
 from app.models import Job, JobSearchPreferences
@@ -53,13 +55,6 @@ if an important value has multiple plausible meanings. Never invent units.
 Leave closing_within_days and result_limit null unless explicitly requested.
 For non-search actions, use empty lists or nulls for unused fields.
 """.strip()
-
-LOCATION_LABELS = re.compile(
-    r"(?im)^\s*(?:eligible locations|application locations|work from|open to applicants from|remote locations|location)\s*:\s*(.+)$"
-)
-LOCATION_LIMITS = re.compile(r"\b(except|excluding|but not|not eligible|outside of|no applicants)\b", re.I)
-WORLDWIDE_LOCATIONS = {"worldwide", "remote worldwide", "anywhere in the world", "remote anywhere in the world"}
-
 
 class AgentNotConfigured(RuntimeError):
     """The deployment is missing valid intent-model configuration."""
@@ -247,9 +242,12 @@ def _location_check(job: Job, requested: str | None) -> LocationCheck:
     if not requested:
         return LocationCheck(status="not_requested")
     target = search_tokens(requested)
-    stated_locations = [job.location, *job.additional_locations]
-    stated_locations.extend(LOCATION_LABELS.findall(job.description or ""))
-    for statement in stated_locations:
+    if target == {"india"}:
+        evidence = india_location_evidence(job)
+        if evidence:
+            return LocationCheck(status="listed_location", evidence=evidence[:220])
+        return LocationCheck(status="needs_confirmation")
+    for statement in location_statements(job):
         if LOCATION_LIMITS.search(statement):
             continue
         if (target and target <= search_tokens(statement)) or " ".join(statement.casefold().split()) in WORLDWIDE_LOCATIONS:
@@ -304,10 +302,12 @@ def _search(state: DiscoveryState) -> DiscoveryState:
             for fact in profile.facts if any(source.resume_id == resume.resume_id for source in fact.sources)
         ])
     matched = match_jobs(jobs, profile, get_application_details())
+    prioritize_india = not filters.preferences.location_keywords and not filters.applicant_location
 
     def rank(job: Job):
         blocked, count, fraction = match_sort_key(job)
-        return blocked, locations[job.id].status == "needs_confirmation", count, fraction
+        outside_preferred_market = prioritize_india and not india_location_evidence(job)
+        return blocked, locations[job.id].status == "needs_confirmation", outside_preferred_market, count, fraction
 
     shortlist = [
         DiscoveryJob(

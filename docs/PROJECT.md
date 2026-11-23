@@ -23,7 +23,7 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 
 The backend supports the workflow from a reviewed resume to a ranked shortlist and an assisted application draft. The natural-language discovery endpoint is `POST /api/v1/agents/job-discovery`. The live Mozilla test in Swagger returned HTTP 200 with matches using Groq. The model extracts search filters, configured employer feeds supply the listings, and GetSwydd ranks them using confirmed profile evidence.
 
-The next milestone is connecting the natural-language search UI to that endpoint. The frontend needs to show the applied filters and ranked jobs, ask for clarification when requested, and let the user open the official posting or prepare an assisted draft with a reviewed resume. See the [agent API contract](api-contract.md#12-job-discovery-agent) for request and response behavior and the [README](../README.md#try-live-job-discovery-with-groq) for the local smoke test.
+The Discover page now offers **Search with AI** for ranked jobs, clarification, and links to the employer posting and detailed analysis. See the [agent API contract](api-contract.md#12-job-discovery-agent) for request and response behavior and the [README](../README.md#try-live-job-discovery-with-groq) for the local smoke test.
 
 ## Product Roadmap
 
@@ -53,12 +53,13 @@ The next milestone is connecting the natural-language search UI to that endpoint
 - [x] Prepare assisted drafts for Greenhouse, Lever, and Ashby jobs and track user-reported submissions.
 - [x] Save role and location preferences and filter or rank real jobs by confirmed skill evidence.
 - [x] Search configured Greenhouse, Lever, and Ashby boards in one catalog.
+- [x] Default the frontend to India and worldwide remote listings. Keep all locations available and use INR for new compensation preferences.
 - [x] Filter by workplace, employment type, experience, compensation, and closing date when listed.
 - [x] Explain recognized job requirements and offer opt-in semantic resume comparison.
 - [x] Refresh job listings on a schedule and retain deduplicated saved-search alerts.
 - [x] Turn natural-language search requests into a ranked shortlist using a configurable model provider.
 - [x] Verify live Groq-backed discovery in Swagger.
-- [ ] Connect natural-language search and clarification to the frontend.
+- [x] Connect natural-language search and clarification to the frontend.
 - [ ] Add an authorized employer submission integration.
 - [ ] Application status Kanban dashboard.
 - [ ] Add optional Gmail tracking through OAuth.

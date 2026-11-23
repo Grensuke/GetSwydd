@@ -443,7 +443,8 @@ Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, a
 | Parameter | Behavior |
 |---|---|
 | `q` | Requires all query words to appear in the job title or company name. |
-| `location` | Requires all query words to appear in the provider's location text. |
+| `location` | Matches the provider's location text. Recognized Indian city names also match `India`. Common alternate names such as Bangalore and Bengaluru are equivalent. |
+| `market=india` | Keeps listings with recognized Indian locations or explicit worldwide availability. Bare remote listings need location evidence. The public API defaults to `market=all`. |
 | `use_preferences=true` | Applies saved role and location keywords. Words within each entry must all match. Entries in a category are alternatives, and the role and location categories both apply. |
 | `internships_only=true` | Keeps listings with Intern or Internship in the title, including plurals. An explicit value overrides the saved internship setting. |
 | `sort=match` | Orders jobs by confirmed skill count and then by the share of recognized skills confirmed. Ties preserve catalog order. |
@@ -537,7 +538,7 @@ Use `refresh: true` for an explicit feed refresh. Read `refresh_sources` for eac
 
 Each result includes `applicant_location_check.status` of `listed_location`, `needs_confirmation`, or `not_requested`. `listed_location` means the location text explicitly covers the requested place or says the job is worldwide. Display the supplied evidence. Treat unqualified remote listings as needing confirmation. Location evidence is separate from legal work authorization.
 
-The model receives the search message and the agent's role instructions to produce the plan. Job results and URLs come from the configured public catalog. Resume matching and work-authorization checks use existing local services. Uploaded files, confirmed profile details, and API keys are excluded from the model's messages. Render all returned text as plain text and use the separate `apply_url` field for the employer link.
+For searches with no specified or saved location, the agent ranks India and explicit worldwide listings before other locations among jobs that pass the same eligibility checks. Explicit search locations still apply. The model receives the search message and the agent's role instructions to produce the plan. Job results and URLs come from the configured public catalog. Resume matching and work-authorization checks use existing local services. Uploaded files, confirmed profile details, and API keys are excluded from the model's messages. Render all returned text as plain text and use the separate `apply_url` field for the employer link.
 
 Display the returned `detail` message when it is text. FastAPI validation failures use an array in `detail`.
 

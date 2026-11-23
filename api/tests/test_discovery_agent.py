@@ -52,6 +52,58 @@ def reviewed_resume(filename: str, *skills: str):
     return confirm_resume(resume.id, ResumeReview(revision=0, facts=facts))
 
 
+def test_india_market_filters_listings_before_pagination(client, monkeypatch):
+    from app import main
+
+    postings = [
+        listing(1, "Engineer", "London, UK", "We have a team in India."),
+        listing(2, "Graduate Trainee", "Bangalore", ""),
+        listing(3, "Engineer", "Remote", ""),
+        listing(4, "Engineer", "Remote Globally", ""),
+        listing(5, "Engineer", "Remote Worldwide", "Eligible locations: Worldwide excluding India"),
+        listing(6, "Engineer", "New York", "", additional_locations=["Hyderabad"]),
+        listing(7, "Engineer", "Indianapolis, IN", ""),
+        listing(8, "Support Intern", "Remote", "Open to applicants from: India"),
+        listing(9, "Engineer", "Kochi, Japan", ""),
+    ]
+    monkeypatch.setattr(main, "live_jobs", lambda _: postings)
+
+    response = client.get("/api/v1/jobs", params={"source": "live", "market": "india", "limit": 2})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 4
+    assert [job["id"] for job in data["jobs"]] == [postings[1].id, postings[3].id]
+    assert data["jobs"][0]["experience_level"] == "entry"
+    second_page = client.get("/api/v1/jobs?source=live&market=india&offset=2").json()
+    assert [job["id"] for job in second_page["jobs"]] == [postings[5].id, postings[7].id]
+    assert client.get("/api/v1/jobs?source=live&market=all").json()["total"] == len(postings)
+    assert client.get("/api/v1/jobs?source=live&location=India").json()["total"] == 2
+    assert client.get("/api/v1/jobs?source=live&location=Bengaluru").json()["total"] == 1
+    assert client.put("/api/v1/jobs/preferences", json={"location_keywords": ["India"]}).status_code == 200
+    assert client.get("/api/v1/jobs?source=live&use_preferences=true").json()["total"] == 2
+
+
+def test_agent_prioritizes_india_and_respects_explicit_location(client, monkeypatch):
+    postings = [
+        listing(1, "Junior Engineer", "London, UK", ""),
+        listing(2, "Junior Engineer", "Pune", ""),
+    ]
+    monkeypatch.setattr(discovery_agent, "live_jobs", lambda _: postings)
+    monkeypatch.setattr(discovery_agent, "interpret_message", lambda _: plan())
+    response = client.post(AGENT_URL, json={"message": "Find junior engineering jobs", "limit": 1}).json()
+    assert response["total_matches"] == 2 and response["jobs"][0]["job_id"] == postings[1].id
+
+    monkeypatch.setattr(discovery_agent, "interpret_message", lambda _: plan(location_keywords=["London"]))
+    response = client.post(AGENT_URL, json={"message": "Find engineering jobs in London"}).json()
+    assert [job["job_id"] for job in response["jobs"]] == [postings[0].id]
+
+    monkeypatch.setattr(discovery_agent, "interpret_message", lambda _: plan(
+        applicant_location="India", require_listed_applicant_location=True,
+    ))
+    response = client.post(AGENT_URL, json={"message": "Find jobs where applicants from India can work"}).json()
+    assert response["jobs"][0]["applicant_location_check"] == {"status": "listed_location", "evidence": "Pune"}
+
+
 def test_search_uses_live_catalog_and_selected_resume_without_guessing_location(client, monkeypatch):
     backend = reviewed_resume("Backend Resume.pdf", "Python")
     reviewed_resume("Database Resume.pdf", "SQL")
