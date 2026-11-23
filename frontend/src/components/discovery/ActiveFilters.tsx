@@ -46,7 +46,9 @@ export function ActiveFilters({
   if (q) chips.push({ key: "q", label: `"${q}"` });
   if (location) chips.push({ key: "location", label: `Location: ${location}` });
   for (const w of workplace) chips.push({ key: "workplace", label: titleCaseEnum(w), value: w });
-  for (const e of employment) chips.push({ key: "employment", label: titleCaseEnum(e), value: e });
+  if (!internshipsOnly) {
+    for (const e of employment) chips.push({ key: "employment", label: titleCaseEnum(e), value: e });
+  }
   for (const l of experienceLevel) chips.push({ key: "experienceLevel", label: titleCaseEnum(l), value: l });
   if (closingWithinDays !== null) {
     const opt = CLOSING_OPTIONS.find((o) => o.value === closingWithinDays);
@@ -60,13 +62,13 @@ export function ActiveFilters({
   return (
     <div className="flex flex-wrap items-center gap-1.5" role="list" aria-label="Active filters">
       {chips.map((chip, i) => (
-        <span key={`${chip.key}-${chip.value ?? i}`} role="listitem">
-          <Badge tone="neutral" className="gap-1.5">
-            {chip.label}
+        <span key={`${chip.key}-${chip.value ?? i}`} role="listitem" className="min-w-0 max-w-full">
+          <Badge tone="neutral" className="max-w-full gap-1.5 whitespace-normal">
+            <span className="min-w-0 wrap-anywhere">{chip.label}</span>
             <button
               type="button"
               onClick={() => onRemove(chip.key, chip.value)}
-              className="ml-0.5 text-sage-deep hover:text-ink transition-colors"
+              className="ml-0.5 shrink-0 text-sage-deep transition-colors hover:text-ink"
               aria-label={`Remove filter: ${chip.label}`}
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">

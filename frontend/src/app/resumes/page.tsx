@@ -150,11 +150,9 @@ export default function ResumesPage() {
 
   return (
     <PageContainer>
-      {/* Editorial Header */}
       <PageHeader
-        eyebrow="YOUR RESUMES"
-        title="The record everything else is built from."
-        description="Only qualifications and experiences you review and confirm are ever used in your applications. Upload resumes, inspect extracted claims, and establish your verified profile."
+        title="Resumes"
+        description="Review the facts extracted from each resume before GetSwydd uses them to match jobs and prepare applications."
       />
 
       {loadError && (
@@ -173,7 +171,7 @@ export default function ResumesPage() {
       )}
 
       {/* Two-Column Responsive Layout */}
-      <div className="grid items-start gap-8 lg:grid-cols-[20rem_minmax(0,1fr)]">
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] lg:gap-6">
         {/* Left Column: Upload Dropzone & Resume List */}
         <div className="space-y-6">
           {/* Upload Dropzone */}
@@ -185,7 +183,7 @@ export default function ResumesPage() {
           />
 
           {/* Uploaded Resumes List */}
-          <Panel eyebrow="VAULT" title="Uploaded Resumes">
+          <Panel title="Uploaded resumes">
             {resumes === null ? (
               <p className="text-xs text-sage-deep">Loading uploads…</p>
             ) : resumes.length === 0 ? (
@@ -199,17 +197,17 @@ export default function ResumesPage() {
                       key={resume.id}
                       className={`p-3 -mx-2 rounded-md transition-colors ${
                         isSelected
-                          ? "bg-cream/40 border-l-2 border-l-ink font-medium"
-                          : "hover:bg-cream/20"
+                          ? "border-l-2 border-l-moss bg-moss-tint/60 font-medium"
+                          : "hover:bg-paper"
                       }`}
                     >
                       <button
                         type="button"
                         onClick={() => setSelectedId(resume.id)}
-                        className="w-full text-left cursor-pointer space-y-1 focus:outline-none"
+                        className="w-full cursor-pointer space-y-1 rounded-sm text-left"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-sans font-semibold text-xs text-ink break-all">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <span className="min-w-0 flex-1 basis-32 wrap-anywhere text-xs font-semibold text-ink">
                             {resume.filename}
                           </span>
                           <Badge tone={resume.reviewed ? "verified" : "attention"}>
@@ -259,7 +257,7 @@ export default function ResumesPage() {
         </div>
 
         {/* Right Column: Review Panel & Merged Confirmed Profile */}
-        <div className="space-y-8 min-w-0">
+        <div className="min-w-0 space-y-5 lg:space-y-6">
           {activeDetail ? (
             <>
               {Boolean(activeDetail.confirmed_facts?.skills.length) && (

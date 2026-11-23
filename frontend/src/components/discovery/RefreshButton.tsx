@@ -49,10 +49,11 @@ export function RefreshButton({
 
   return (
     <div className={className}>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button
           variant="secondary"
           size="sm"
+          className="min-h-9"
           onClick={handleRefresh}
           loading={loading}
           aria-busy={loading}
@@ -77,7 +78,7 @@ export function RefreshButton({
 
       {result && (
         <div className="mt-3 p-3 bg-paper-raised border border-hairline rounded-md text-xs space-y-1.5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="eyebrow">FEED REFRESH RESULTS</span>
             <button
               type="button"
@@ -92,13 +93,13 @@ export function RefreshButton({
             {result.sources.map((s: SourceRefresh) => (
               <li
                 key={`${s.source}-${s.board}`}
-                className="py-1 flex items-center justify-between gap-2"
+                className="flex flex-wrap items-center justify-between gap-2 py-1"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="font-semibold text-ink">{titleCaseEnum(s.source)}</span>
-                  <span className="text-sage-deep font-mono">({s.board})</span>
+                  <span className="min-w-0 wrap-anywhere font-mono text-sage-deep">({s.board})</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={
                       s.status === "failed"

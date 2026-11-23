@@ -82,108 +82,114 @@ export function DiscoveryView() {
   return (
     <div>
       <AgentDiscovery onSourcesRefreshed={reload} />
-      <SourceTabs
-        value={params.source}
-        onChange={(s) => setParam("source", s)}
-        className="mb-4"
-      />
-
-      {params.source !== "demo" && (
-        <div className="mb-4 flex items-center gap-3">
-          <label htmlFor="discovery-market" className="eyebrow">Job market</label>
-          <Select
-            id="discovery-market"
-            className="max-w-60"
-            value={params.market}
-            onChange={(event) => setParam("market", event.currentTarget.value === "all" ? "all" : "india")}
-          >
-            <option value="india">India and worldwide remote</option>
-            <option value="all">All locations</option>
-          </Select>
-        </div>
-      )}
-
-      <SearchBar
-        q={draftQ}
-        location={draftLocation}
-        onQChange={(v) => setTextDebounced("q", v)}
-        onLocationChange={(v) => setTextDebounced("location", v)}
-        onSubmit={commitSearchImmediately}
-        onClear={clearSearch}
-        className="mb-4"
-      />
-
-      <DiscoveryToolbar
-        page={params.page}
-        pageSize={params.pageSize}
-        total={total}
-        status={status}
-        hasResponse={!!response}
-        activeFilterCount={activeFilterCount}
-        sort={params.sort}
-        hasProfile={hasProfile}
-        lastRefreshedAt={lastRefreshedAt}
-        onSortChange={(s) => setParam("sort", s)}
-        onToggleMobileFilters={() => setMobileFilters((p) => !p)}
-        onOpenPrefs={() => setPrefsOpen(true)}
-        onRefreshComplete={reload}
-      />
-
-      <ActiveFilters
-        q={params.q}
-        location={params.location}
-        internshipsOnly={params.internshipsOnly}
-        workplace={params.workplace}
-        employment={params.employment}
-        experienceLevel={params.experienceLevel}
-        closingWithinDays={params.closingWithinDays}
-        usePreferences={params.usePreferences}
-        onRemove={handleRemoveFilter}
-        onClearAll={resetFilters}
-      />
-
-      <div className="mt-4 flex gap-6">
-        <aside className="hidden lg:block w-[260px] shrink-0">
-          <Panel className="sticky top-24">
-            <FilterPanel
-              workplace={params.workplace}
-              employment={params.employment}
-              experienceLevel={params.experienceLevel}
-              closingWithinDays={params.closingWithinDays}
-              internshipsOnly={params.internshipsOnly}
-              usePreferences={params.usePreferences}
-              onWorkplaceChange={(v: Workplace[]) => setParam("workplace", v)}
-              onEmploymentChange={(v) => setParam("employment", v)}
-              onExperienceLevelChange={(v) => setParam("experienceLevel", v)}
-              onClosingChange={(v) => setParam("closingWithinDays", v)}
-              onInternshipsOnlyChange={(v) => setParam("internshipsOnly", v)}
-              onUsePreferencesChange={(v) => setParam("usePreferences", v)}
-              onReset={resetFilters}
-              isResetDisabled={activeFilterCount === 0}
+      <section id="job-catalog" aria-labelledby="catalog-title" className="scroll-mt-5">
+        <h2 id="catalog-title" className="mb-4 text-2xl sm:text-3xl">Browse jobs</h2>
+        <Panel className="mb-4 grid gap-4 sm:mb-5">
+          <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <SourceTabs
+              value={params.source}
+              onChange={(s) => setParam("source", s)}
+              className="min-w-0"
             />
-          </Panel>
-        </aside>
 
-        <main className="flex-1 min-w-0">
-          <ResultsRegion
-            status={status}
-            response={response}
-            jobs={jobs}
-            total={total}
-            error={error}
-            page={params.page}
-            pageSize={params.pageSize}
-            activeFilterCount={activeFilterCount}
-            source={params.source}
-            market={params.market}
-            isRefetching={isRefetching}
-            onRetry={reload}
-            onClearFilters={resetFilters}
-            onPageChange={setPage}
-            onPageSizeChange={(sz) => setParam("pageSize", sz)}
+            {params.source !== "demo" && (
+              <div className="grid w-full gap-1.5 sm:w-64 xl:shrink-0">
+                <label htmlFor="discovery-market" className="eyebrow">Job market</label>
+                <Select
+                  id="discovery-market"
+                  className="min-h-10"
+                  value={params.market}
+                  onChange={(event) => setParam("market", event.currentTarget.value === "all" ? "all" : "india")}
+                >
+                  <option value="india">India and worldwide remote</option>
+                  <option value="all">All locations</option>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <SearchBar
+            q={draftQ}
+            location={draftLocation}
+            onQChange={(v) => setTextDebounced("q", v)}
+            onLocationChange={(v) => setTextDebounced("location", v)}
+            onSubmit={commitSearchImmediately}
+            onClear={clearSearch}
           />
-        </main>
-      </div>
+        </Panel>
+
+        <DiscoveryToolbar
+          page={params.page}
+          pageSize={params.pageSize}
+          total={total}
+          status={status}
+          hasResponse={!!response}
+          activeFilterCount={activeFilterCount}
+          sort={params.sort}
+          hasProfile={hasProfile}
+          lastRefreshedAt={lastRefreshedAt}
+          onSortChange={(s) => setParam("sort", s)}
+          onToggleMobileFilters={() => setMobileFilters((p) => !p)}
+          onOpenPrefs={() => setPrefsOpen(true)}
+          onRefreshComplete={reload}
+        />
+
+        <ActiveFilters
+          q={params.q}
+          location={params.location}
+          internshipsOnly={params.internshipsOnly}
+          workplace={params.workplace}
+          employment={params.employment}
+          experienceLevel={params.experienceLevel}
+          closingWithinDays={params.closingWithinDays}
+          usePreferences={params.usePreferences}
+          onRemove={handleRemoveFilter}
+          onClearAll={resetFilters}
+        />
+
+        <div className="mt-4 grid min-w-0 gap-5 lg:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)]">
+          <aside aria-label="Job filters" className="hidden min-w-0 lg:block">
+            <Panel className="sticky top-5 max-h-[calc(100dvh-2.5rem)] overflow-y-auto">
+              <FilterPanel
+                workplace={params.workplace}
+                employment={params.employment}
+                experienceLevel={params.experienceLevel}
+                closingWithinDays={params.closingWithinDays}
+                internshipsOnly={params.internshipsOnly}
+                usePreferences={params.usePreferences}
+                onWorkplaceChange={(v: Workplace[]) => setParam("workplace", v)}
+                onEmploymentChange={(v) => setParam("employment", v)}
+                onExperienceLevelChange={(v) => setParam("experienceLevel", v)}
+                onClosingChange={(v) => setParam("closingWithinDays", v)}
+                onInternshipsOnlyChange={(v) => setParam("internshipsOnly", v)}
+                onUsePreferencesChange={(v) => setParam("usePreferences", v)}
+                onReset={resetFilters}
+                isResetDisabled={activeFilterCount === 0}
+              />
+            </Panel>
+          </aside>
+
+          <div id="catalog-results" role="tabpanel" aria-labelledby={`source-tab-${params.source}`} className="min-w-0">
+            <ResultsRegion
+              status={status}
+              response={response}
+              jobs={jobs}
+              total={total}
+              error={error}
+              page={params.page}
+              pageSize={params.pageSize}
+              activeFilterCount={activeFilterCount}
+              source={params.source}
+              market={params.market}
+              isRefetching={isRefetching}
+              onRetry={reload}
+              onClearFilters={resetFilters}
+              onPageChange={setPage}
+              onPageSizeChange={(sz) => setParam("pageSize", sz)}
+            />
+          </div>
+        </div>
+      </section>
 
       <MobileFilterSheet
         open={mobileFilters}

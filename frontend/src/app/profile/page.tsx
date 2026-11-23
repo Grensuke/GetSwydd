@@ -150,7 +150,7 @@ export default function ProfilePage() {
       </div>
 
       {loading && (
-        <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,21rem)] lg:gap-6">
           <Panel className="space-y-6">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-10 w-full" />
@@ -174,8 +174,8 @@ export default function ProfilePage() {
       )}
 
       {!loading && !loadError && (
-        <div className="grid gap-8 lg:grid-cols-[1fr_22rem] items-start">
-          <div className="space-y-6">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,21rem)] lg:gap-6">
+          <div className="min-w-0 space-y-6">
             {successNotice && (
               <div
                 role="status"

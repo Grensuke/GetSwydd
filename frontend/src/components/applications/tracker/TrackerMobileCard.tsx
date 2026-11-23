@@ -19,30 +19,32 @@ export function TrackerMobileCard({ app, personal, onEditNote }: TrackerMobileCa
   const personalInfo = personal?.stage ? PERSONAL_STAGE_MAP[personal.stage] : null;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <span className="eyebrow block text-sage-deep">{app.company}</span>
+    <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-hairline bg-paper-raised p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 basis-44">
+          <span className="block wrap-anywhere text-xs font-medium text-sage-deep">{app.company}</span>
           <Link
             href={app.links.draft}
-            className="font-display text-base font-medium text-ink hover:underline block"
+            className="mt-0.5 block wrap-anywhere text-base font-medium leading-snug text-ink hover:underline"
           >
             {app.jobTitle}
           </Link>
         </div>
-        <Badge tone={confirmedInfo.tone}>{confirmedInfo.label}</Badge>
+        <Badge tone={confirmedInfo.tone} className="max-w-full whitespace-normal">{confirmedInfo.label}</Badge>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="font-mono text-sage-deep truncate max-w-[150px]">{app.resume}</span>
-        <span className="text-sage-deep">&bull;</span>
-        <span className="font-mono text-sage-deep">{formatDate(app.updatedAt)}</span>
+      <div className="space-y-1 wrap-anywhere text-xs text-sage-deep">
+        <p>{app.confirmedSource}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="min-w-0">{app.resume}</span>
+          <span className="tabular-nums">{formatDate(app.updatedAt)}</span>
+        </div>
       </div>
 
       {/* Personal note row */}
       <div className="p-2.5 rounded bg-paper border border-hairline/60 space-y-1 text-xs">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <SourceTag source="personal_note" />
             {personalInfo && <Badge tone="outline">{personalInfo.label}</Badge>}
           </div>
@@ -55,14 +57,14 @@ export function TrackerMobileCard({ app, personal, onEditNote }: TrackerMobileCa
           </button>
         </div>
         {personal?.note && (
-          <p className="text-[11px] text-ink-soft italic leading-snug">
+          <p className="wrap-anywhere text-xs leading-snug text-ink-soft">
             &ldquo;{personal.note}&rdquo;
           </p>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3 pt-1 text-xs">
+      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 text-xs">
         {app.confirmedStage === "preparing" && (
           <Link href={app.links.draft} className="font-medium text-ink underline">
             Continue draft &rarr;
@@ -79,6 +81,6 @@ export function TrackerMobileCard({ app, personal, onEditNote }: TrackerMobileCa
           </Link>
         )}
       </div>
-    </div>
+    </article>
   );
 }

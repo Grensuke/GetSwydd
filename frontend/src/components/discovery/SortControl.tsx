@@ -35,9 +35,9 @@ export function SortControl({
           aria-checked={value === "default"}
           onClick={() => onChange("default")}
           className={cn(
-            "px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-150 cursor-pointer",
+            "min-h-[34px] cursor-pointer px-3 text-xs font-semibold transition-colors",
             value === "default"
-              ? "bg-cream text-ink font-bold"
+              ? "bg-cream text-on-cream font-bold"
               : "bg-paper-raised text-ink-soft hover:text-ink hover:bg-cream/40"
           )}
         >
@@ -51,9 +51,9 @@ export function SortControl({
           disabled={matchDisabled}
           onClick={() => !matchDisabled && onChange("match")}
           className={cn(
-            "px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-150",
+            "min-h-[34px] px-3 text-xs font-semibold transition-colors",
             value === "match"
-              ? "bg-cream text-ink font-bold"
+              ? "bg-cream text-on-cream font-bold"
               : "bg-paper-raised text-ink-soft hover:text-ink hover:bg-cream/40",
             matchDisabled && "opacity-40 cursor-not-allowed hover:bg-paper-raised"
           )}

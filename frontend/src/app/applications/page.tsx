@@ -22,9 +22,8 @@ export default function ApplicationTrackerPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="APPLICATIONS"
-        title="A clear record of what was sent, and what wasn't."
-        description="Track both confirmed backend submissions and assisted application drafts, augmented with your private personal notes."
+        title="Applications"
+        description="Track drafts, reported submissions, and your personal updates."
       />
       <Suspense fallback={<TrackerSkeleton />}>
         <TrackerContent />
@@ -128,8 +127,8 @@ function TrackerContent() {
       {/* Partial failure notices */}
       {assistedError && (
         <InlineNotice variant="attention">
-          <div className="flex items-center justify-between gap-3">
-            <span>Assisted applications could not be refreshed ({assistedError}).</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="wrap-anywhere">Assisted applications could not be refreshed ({assistedError}).</span>
             <Button
               type="button"
               variant="quiet"
@@ -144,8 +143,8 @@ function TrackerContent() {
 
       {submissionsError && (
         <InlineNotice variant="attention">
-          <div className="flex items-center justify-between gap-3">
-            <span>Test submissions could not be refreshed ({submissionsError}).</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="wrap-anywhere">Test submissions could not be refreshed ({submissionsError}).</span>
             <Button
               type="button"
               variant="quiet"
@@ -162,41 +161,39 @@ function TrackerContent() {
       <TrackerSummaryStrip applications={applications} />
 
       {/* View Switcher Controls */}
-      <div className="flex items-center justify-between border-b border-hairline pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hairline pb-3">
         <div
-          role="tablist"
-          aria-label="Tracker view modes"
-          className="inline-flex rounded-md border border-hairline bg-paper p-0.5 text-xs select-none"
+          role="group"
+          aria-label="Application tracker view"
+          className="inline-flex select-none rounded-lg border border-hairline bg-paper-raised p-0.5 text-xs"
         >
           <button
             type="button"
-            role="tab"
-            aria-selected={activeView === "ledger"}
+            aria-pressed={activeView === "ledger"}
             onClick={() => handleViewChange("ledger")}
-            className={`px-3 py-1 font-medium rounded transition-colors cursor-pointer ${
+            className={`min-h-9 cursor-pointer rounded-md px-3 font-medium transition-colors ${
               activeView === "ledger"
-                ? "bg-cream text-[var(--color-on-cream,#2B2F27)] font-semibold shadow-[0_1px_0_rgba(43,47,39,0.06)]"
+                ? "bg-cream text-on-cream font-semibold shadow-[0_1px_0_rgba(43,47,39,0.06)]"
                 : "text-sage-deep hover:text-ink hover:bg-paper-raised"
             }`}
           >
-            Ledger View
+            Ledger
           </button>
           <button
             type="button"
-            role="tab"
-            aria-selected={activeView === "board"}
+            aria-pressed={activeView === "board"}
             onClick={() => handleViewChange("board")}
-            className={`px-3 py-1 font-medium rounded transition-colors cursor-pointer ${
+            className={`min-h-9 cursor-pointer rounded-md px-3 font-medium transition-colors ${
               activeView === "board"
-                ? "bg-cream text-[var(--color-on-cream,#2B2F27)] font-semibold shadow-[0_1px_0_rgba(43,47,39,0.06)]"
+                ? "bg-cream text-on-cream font-semibold shadow-[0_1px_0_rgba(43,47,39,0.06)]"
                 : "text-sage-deep hover:text-ink hover:bg-paper-raised"
             }`}
           >
-            Board View
+            Board
           </button>
         </div>
 
-        <span className="font-mono text-xs text-sage-deep">
+        <span className="text-xs tabular-nums text-sage-deep">
           {applications.length} tracked record{applications.length === 1 ? "" : "s"}
         </span>
       </div>

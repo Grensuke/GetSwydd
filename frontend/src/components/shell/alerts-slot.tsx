@@ -96,7 +96,7 @@ export function AlertsSlot() {
 
         {displayCount && (
           <span
-            className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded-sm bg-cream text-ink border border-hairline-strong leading-tight tabular-nums"
+            className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded-sm bg-cream text-on-cream border border-hairline-strong leading-tight tabular-nums"
             aria-hidden="true"
           >
             {displayCount}

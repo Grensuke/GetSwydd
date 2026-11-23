@@ -82,18 +82,18 @@ export function TrackerLedger({ applications }: TrackerLedgerProps) {
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border border-hairline bg-paper-raised overflow-hidden shadow-[0_1px_0_rgba(43,47,39,0.04)]">
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-paper border-b border-hairline sticky top-16 z-10 text-[11px] font-semibold uppercase tracking-wider text-sage-deep">
+        <>
+          <div className="hidden overflow-hidden rounded-xl border border-hairline bg-paper-raised lg:block">
+            <table className="w-full table-fixed border-collapse text-left text-sm">
+              <caption className="sr-only">Tracked applications</caption>
+              <thead className="border-b border-hairline bg-paper text-xs font-semibold text-ink-soft">
                 <tr>
-                  <th scope="col" className="py-3 px-4">Company & Role</th>
-                  <th scope="col" className="py-3 px-4">Resume</th>
-                  <th scope="col" className="py-3 px-4">Confirmed Status</th>
-                  <th scope="col" className="py-3 px-4">Your Note</th>
-                  <th scope="col" className="py-3 px-4">Date</th>
-                  <th scope="col" className="py-3 px-4 text-right">Actions</th>
+                  <th scope="col" className="w-[26%] px-4 py-3">Role and company</th>
+                  <th scope="col" className="w-[16%] px-3 py-3">Resume</th>
+                  <th scope="col" className="w-[19%] px-3 py-3">Confirmed status</th>
+                  <th scope="col" className="w-[14%] px-3 py-3">Your note</th>
+                  <th scope="col" className="w-[11%] px-3 py-3">Updated</th>
+                  <th scope="col" className="w-[14%] px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline text-ink">
@@ -103,43 +103,43 @@ export function TrackerLedger({ applications }: TrackerLedgerProps) {
                   const personalInfo = personal?.stage ? PERSONAL_STAGE_MAP[personal.stage] : null;
 
                   return (
-                    <tr key={app.key} className="hover:bg-cream/20 transition-colors">
-                      <td className="py-3 px-4">
+                    <tr key={app.key} className="align-top transition-colors hover:bg-paper">
+                      <td className="px-4 py-4">
                         <Link
                           href={app.links.draft}
-                          className="font-display text-sm font-medium text-ink hover:underline block leading-snug"
+                          className="block wrap-anywhere font-medium leading-snug text-ink hover:underline"
                         >
                           {app.jobTitle}
                         </Link>
-                        <span className="text-[11px] text-sage-deep block mt-0.5">
+                        <span className="mt-1 block wrap-anywhere text-xs text-sage-deep">
                           {app.company}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 font-mono text-[11px] text-ink-soft max-w-[140px] truncate" title={app.resume}>
+                      <td className="px-3 py-4 wrap-anywhere text-xs text-ink-soft">
                         {app.resume}
                       </td>
 
-                      <td className="py-3 px-4 space-y-1">
-                        <Badge tone={confirmedInfo.tone}>{confirmedInfo.label}</Badge>
-                        <span className="eyebrow block text-[10px] text-sage-deep">{app.confirmedSource}</span>
+                      <td className="space-y-1 px-3 py-4">
+                        <Badge tone={confirmedInfo.tone} className="max-w-full whitespace-normal">{confirmedInfo.label}</Badge>
+                        <span className="block wrap-anywhere text-xs text-sage-deep">{app.confirmedSource}</span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="px-3 py-4">
                         {personal ? (
                           <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               {personalInfo && <Badge tone="outline">{personalInfo.label}</Badge>}
                               <button
                                 type="button"
                                 onClick={() => setEditingApp(app)}
-                                className="text-[10px] text-sage-deep hover:text-ink underline cursor-pointer"
+                                className="cursor-pointer text-xs text-sage-deep underline hover:text-ink"
                               >
                                 Edit note
                               </button>
                             </div>
                             {personal.note && (
-                              <p className="text-[11px] text-ink-soft line-clamp-1 italic max-w-xs">
+                              <p className="line-clamp-2 wrap-anywhere text-xs text-ink-soft">
                                 &ldquo;{personal.note}&rdquo;
                               </p>
                             )}
@@ -155,37 +155,39 @@ export function TrackerLedger({ applications }: TrackerLedgerProps) {
                         )}
                       </td>
 
-                      <td className="py-3 px-4 font-mono text-[11px] text-sage-deep whitespace-nowrap">
+                      <td className="px-3 py-4 text-xs text-sage-deep tabular-nums">
                         {formatDate(app.updatedAt)}
                       </td>
 
-                      <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                        {app.confirmedStage === "preparing" && (
-                          <Link
-                            href={app.links.draft}
-                            className="text-xs font-semibold text-ink underline hover:text-ink-soft"
-                          >
-                            Continue draft &rarr;
-                          </Link>
-                        )}
-                        {app.applyUrl && (
-                          <a
-                            href={app.applyUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-sage-deep hover:text-ink underline"
-                          >
-                            Employer site &nearr;
-                          </a>
-                        )}
-                        {app.kind === "test" && (
-                          <Link
-                            href={app.links.draft}
-                            className="text-xs text-sage-deep hover:text-ink underline"
-                          >
-                            View receipt
-                          </Link>
-                        )}
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex flex-col items-end gap-1.5">
+                          {app.confirmedStage === "preparing" && (
+                            <Link
+                              href={app.links.draft}
+                              className="text-xs font-semibold text-ink underline hover:text-ink-soft"
+                            >
+                              Continue draft &rarr;
+                            </Link>
+                          )}
+                          {app.applyUrl && (
+                            <a
+                              href={app.applyUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-sage-deep hover:text-ink underline"
+                            >
+                              Employer site &nearr;
+                            </a>
+                          )}
+                          {app.kind === "test" && (
+                            <Link
+                              href={app.links.draft}
+                              className="text-xs text-sage-deep hover:text-ink underline"
+                            >
+                              View receipt
+                            </Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -194,8 +196,7 @@ export function TrackerLedger({ applications }: TrackerLedgerProps) {
             </table>
           </div>
 
-          {/* Mobile Stacked View (< 768px) */}
-          <div className="md:hidden divide-y divide-hairline">
+          <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
             {filtered.map((app) => (
               <TrackerMobileCard
                 key={app.key}
@@ -205,7 +206,7 @@ export function TrackerLedger({ applications }: TrackerLedgerProps) {
               />
             ))}
           </div>
-        </div>
+        </>
       )}
 
       <PersonalStatusEditor

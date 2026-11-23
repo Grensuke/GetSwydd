@@ -2,7 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/cn";
-import { Button, Checkbox, Select } from "@/components/ui";
+import { Button, Checkbox, Field, Select } from "@/components/ui";
 import type { Employment, ExperienceLevel, Workplace } from "@/lib/api/types";
 import {
   CLOSING_OPTIONS,
@@ -29,44 +29,41 @@ export interface FilterPanelProps {
   className?: string;
 }
 
-function CheckboxGroup<T extends string>({
+function CatalogFilter<T extends string>({
   label,
+  placeholder,
   options,
-  selected,
+  value,
   disabled = false,
-  disabledHint,
   onChange,
 }: {
   label: string;
+  placeholder: string;
   options: { value: T; label: string }[];
-  selected: T[];
+  value?: T;
   disabled?: boolean;
-  disabledHint?: string;
   onChange: (values: T[]) => void;
 }) {
   return (
-    <fieldset className={cn("space-y-2", disabled && "opacity-50 pointer-events-none")}>
-      <legend className="eyebrow mb-1.5">{label}</legend>
-      {disabledHint && <p className="text-[11px] text-sage-deep mb-1">{disabledHint}</p>}
-      {options.map((opt) => {
-        const checked = selected.includes(opt.value);
-        return (
-          <Checkbox
-            key={opt.value}
-            label={opt.label}
-            checked={checked}
-            disabled={disabled}
-            onChange={() => {
-              onChange(
-                checked
-                  ? selected.filter((v) => v !== opt.value)
-                  : [...selected, opt.value]
-              );
-            }}
-          />
-        );
-      })}
-    </fieldset>
+    <Field label={label}>
+      {({ id }) => (
+        <Select
+          id={id}
+          value={value ?? ""}
+          disabled={disabled}
+          className="min-h-9 disabled:opacity-60"
+          onChange={(event) => {
+            const option = options.find(({ value }) => value === event.currentTarget.value);
+            onChange(option ? [option.value] : []);
+          }}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </Select>
+      )}
+    </Field>
   );
 }
 
@@ -93,9 +90,9 @@ export function FilterPanel({
   className,
 }: FilterPanelProps) {
   return (
-    <div className={cn("space-y-5 text-sm", className)}>
+    <div className={cn("space-y-4 text-sm", className)}>
       <div className="flex items-center justify-between border-b border-hairline pb-2">
-        <span className="eyebrow">REFINE RESULTS</span>
+        <span className="font-medium text-ink">Refine results</span>
         {onReset && (
           <Button
             variant="quiet"
@@ -109,14 +106,22 @@ export function FilterPanel({
         )}
       </div>
 
-      <CheckboxGroup
-        label="WORKPLACE"
+      <CatalogFilter
+        label="Workplace"
+        placeholder="Any workplace"
         options={WORKPLACE_OPTIONS}
-        selected={workplace}
+        value={workplace[0]}
         onChange={onWorkplaceChange}
       />
-
-      <div className="border-t border-hairline pt-3">
+      <CatalogFilter
+        label="Employment type"
+        placeholder="Any employment type"
+        options={EMPLOYMENT_OPTIONS}
+        value={internshipsOnly ? "internship" : employment[0]}
+        disabled={internshipsOnly}
+        onChange={onEmploymentChange}
+      />
+      <div>
         <Checkbox
           label="Internships only"
           checked={internshipsOnly}
@@ -124,51 +129,39 @@ export function FilterPanel({
         />
       </div>
 
-      <div className="border-t border-hairline pt-3">
-        <CheckboxGroup
-          label="EMPLOYMENT TYPE"
-          options={EMPLOYMENT_OPTIONS}
-          selected={employment}
-          disabled={internshipsOnly}
-          disabledHint={internshipsOnly ? "Disabled because 'Internships only' is checked." : undefined}
-          onChange={onEmploymentChange}
-        />
-      </div>
+      <CatalogFilter
+        label="Experience level"
+        placeholder="Any experience level"
+        options={EXPERIENCE_OPTIONS}
+        value={experienceLevel[0]}
+        onChange={onExperienceLevelChange}
+      />
 
-      <div className="border-t border-hairline pt-3">
-        <CheckboxGroup
-          label="EXPERIENCE LEVEL"
-          options={EXPERIENCE_OPTIONS}
-          selected={experienceLevel}
-          onChange={onExperienceLevelChange}
-        />
-      </div>
-
-      <div className="border-t border-hairline pt-3 space-y-1.5">
-        <label htmlFor="closing-filter" className="eyebrow block">
-          CLOSING DEADLINE
-        </label>
-        <Select
-          id="closing-filter"
-          value={closingWithinDays ?? ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            onClosingChange(val ? parseInt(val, 10) : null);
-          }}
-        >
-          <option value="">Any time</option>
-          {CLOSING_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <Field label="Closing deadline">
+        {({ id }) => (
+          <Select
+            id={id}
+            className="min-h-9"
+            value={closingWithinDays ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              onClosingChange(val ? parseInt(val, 10) : null);
+            }}
+          >
+            <option value="">Any time</option>
+            {CLOSING_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
 
       <div className="border-t border-hairline pt-3 space-y-2">
         <Checkbox
           label="Use saved preferences"
-          hint="Explicit workplace and level filters take precedence; saved role keywords, locations, and pay floors are merged."
+          hint="Include your saved roles, locations, and pay preferences."
           checked={usePreferences}
           onChange={(e) => onUsePreferencesChange(e.target.checked)}
         />

@@ -111,116 +111,117 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
       </div>
 
       {/* Main Board Horizontal Scroll Container */}
-      <div className="overflow-x-auto pb-4 scroll-smooth focus:outline-none">
-        <div className="flex gap-4 min-w-[960px] snap-x">
-          {columns.map((col) => {
-            const cards = columnBuckets[col.key] || [];
+      <div
+        role="region"
+        aria-label="Application stages"
+        tabIndex={0}
+        className="grid min-w-0 snap-x grid-flow-col auto-cols-[min(16rem,86%)] gap-3 overflow-x-auto pb-3"
+      >
+        {columns.map((col) => {
+          const cards = columnBuckets[col.key] || [];
 
-            return (
-              <div
-                key={col.key}
-                className="flex-1 min-w-[220px] rounded-lg border border-hairline bg-paper-raised p-3 flex flex-col gap-3 snap-start"
-              >
-                {/* Column Header */}
-                <div className="flex items-center justify-between pb-2 border-b border-hairline">
-                  <div className="space-y-0.5">
-                    <span className="font-semibold text-xs text-ink block">{col.label}</span>
-                    <span className="text-[10px] text-sage-deep block">{col.description}</span>
-                  </div>
-                  <span className="font-mono text-xs bg-paper px-2 py-0.5 rounded border border-hairline text-ink">
-                    {cards.length}
-                  </span>
+          return (
+            <div
+              key={col.key}
+              className="flex min-w-0 snap-start flex-col gap-3 rounded-xl border border-hairline bg-paper-raised p-3"
+            >
+              {/* Column Header */}
+              <div className="flex items-start justify-between gap-2 border-b border-hairline pb-2">
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-xs text-ink block">{col.label}</span>
+                  <span className="text-[10px] text-sage-deep block">{col.description}</span>
                 </div>
-
-                {/* Cards Container */}
-                <div className="space-y-2.5 flex-1 min-h-[140px]">
-                  {cards.length === 0 ? (
-                    <div className="h-24 flex items-center justify-center text-[11px] text-sage-deep italic border border-dashed border-hairline rounded bg-paper/30">
-                      No roles in this stage
-                    </div>
-                  ) : (
-                    cards.map((app) => {
-                      const personal = personalStatuses[app.key];
-                      const confirmedInfo = CONFIRMED_STAGE_MAP[app.confirmedStage];
-                      const isPersonalColumn = col.kind === "personal";
-
-                      return (
-                        <div
-                          key={app.key}
-                          className="p-3 rounded-md border border-hairline bg-paper space-y-2 text-xs shadow-[0_1px_0_rgba(43,47,39,0.03)] hover:border-hairline-strong transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-1">
-                            <span className="eyebrow block text-sage-deep">{app.company}</span>
-                            <MoveStageMenu
-                              currentPersonalStage={personal?.stage ?? null}
-                              onSelectStage={(next) => handleMove(app, next)}
-                            />
-                          </div>
-
-                          <Link
-                            href={app.links.draft}
-                            className="font-display text-sm font-medium text-ink hover:underline block leading-snug"
-                          >
-                            {app.jobTitle}
-                          </Link>
-
-                          {/* Provenance note in personal column */}
-                          {isPersonalColumn && (
-                            <div className="text-[10px] text-sage-deep border-l border-sage/40 pl-1.5 py-0.5">
-                              Confirmed: {confirmedInfo.label}
-                            </div>
-                          )}
-
-                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                            <Badge tone={confirmedInfo.tone}>{confirmedInfo.label}</Badge>
-                            {personal?.stage && (
-                              <Badge tone="outline">{PERSONAL_STAGE_MAP[personal.stage].label}</Badge>
-                            )}
-                            {personal?.note && (
-                              <SourceTag source="personal_note" />
-                            )}
-                          </div>
-
-                          {personal?.note && (
-                            <p className="text-[11px] text-ink-soft italic bg-paper-raised p-1.5 rounded border border-hairline/60 line-clamp-2">
-                              &ldquo;{personal.note}&rdquo;
-                            </p>
-                          )}
-
-                          <div className="pt-2 border-t border-hairline flex items-center justify-between text-[11px] text-sage-deep">
-                            <span className="font-mono text-[10px] truncate max-w-[100px]" title={app.resume}>
-                              {app.resume}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setEditingApp(app)}
-                              className="text-ink underline hover:text-ink-soft cursor-pointer text-[11px]"
-                            >
-                              {personal ? "Edit note" : "+ Note"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                <span className="font-mono text-xs bg-paper px-2 py-0.5 rounded border border-hairline text-ink">
+                  {cards.length}
+                </span>
               </div>
-            );
-          })}
-        </div>
+
+              {/* Cards Container */}
+              <div className="space-y-2.5 flex-1 min-h-[140px]">
+                {cards.length === 0 ? (
+                  <div className="h-24 flex items-center justify-center text-[11px] text-sage-deep italic border border-dashed border-hairline rounded bg-paper/30">
+                    No roles in this stage
+                  </div>
+                ) : (
+                  cards.map((app) => {
+                    const personal = personalStatuses[app.key];
+                    const confirmedInfo = CONFIRMED_STAGE_MAP[app.confirmedStage];
+                    const isPersonalColumn = col.kind === "personal";
+
+                    return (
+                      <article
+                        key={app.key}
+                        className="p-3 rounded-md border border-hairline bg-paper space-y-2 text-xs shadow-[0_1px_0_rgba(43,47,39,0.03)] hover:border-hairline-strong transition-colors"
+                      >
+                        <span className="block wrap-anywhere font-medium text-sage-deep">{app.company}</span>
+
+                        <Link
+                          href={app.links.draft}
+                          className="block wrap-anywhere text-sm font-medium leading-snug text-ink hover:underline"
+                        >
+                          {app.jobTitle}
+                        </Link>
+
+                        {/* Provenance note in personal column */}
+                        {isPersonalColumn && (
+                          <div className="text-[10px] text-sage-deep border-l border-sage/40 pl-1.5 py-0.5">
+                            Confirmed: {confirmedInfo.label}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <Badge tone={confirmedInfo.tone} className="max-w-full whitespace-normal">{confirmedInfo.label}</Badge>
+                          {personal?.stage && (
+                            <Badge tone="outline">{PERSONAL_STAGE_MAP[personal.stage].label}</Badge>
+                          )}
+                          {personal?.note && (
+                            <SourceTag source="personal_note" />
+                          )}
+                        </div>
+
+                        {personal?.note && (
+                          <p className="line-clamp-2 wrap-anywhere rounded border border-hairline bg-paper-raised p-1.5 text-xs text-ink-soft">
+                            &ldquo;{personal.note}&rdquo;
+                          </p>
+                        )}
+
+                        <MoveStageMenu
+                          currentPersonalStage={personal?.stage ?? null}
+                          onSelectStage={(next) => handleMove(app, next)}
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hairline pt-2 text-xs text-sage-deep">
+                          <span className="min-w-0 wrap-anywhere">
+                            {app.resume}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingApp(app)}
+                            className="text-ink underline hover:text-ink-soft cursor-pointer text-[11px]"
+                          >
+                            {personal ? "Edit note" : "+ Note"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Test Submissions Lane (Quietly Separated) */}
       {testSubmissions.length > 0 && (
         <div className="p-4 rounded-lg border border-hairline bg-paper space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="space-y-0.5">
               <span className="eyebrow block text-sage-deep">LOCAL SANDBOX</span>
               <h4 className="font-display text-sm font-medium text-ink">
                 Test Submissions ({testSubmissions.length})
               </h4>
             </div>
-            <span className="text-[11px] text-sage-deep">Delivered to demo mock inbox</span>
+            <span className="text-xs text-sage-deep">Delivered to the demo inbox</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -232,11 +233,11 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
                 <span className="eyebrow block text-sage-deep">{test.company}</span>
                 <Link
                   href={test.links.draft}
-                  className="font-medium text-ink hover:underline block"
+                  className="block wrap-anywhere font-medium text-ink hover:underline"
                 >
                   {test.jobTitle}
                 </Link>
-                <div className="flex items-center justify-between pt-1 text-[11px] text-sage-deep">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-sage-deep">
                   <span className="font-mono">{formatDate(test.updatedAt)}</span>
                   <Badge tone="neutral">Test Receipt</Badge>
                 </div>

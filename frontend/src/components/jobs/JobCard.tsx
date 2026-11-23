@@ -4,7 +4,8 @@ import React, { useId, useState } from "react";
 import Link from "next/link";
 import type { Job } from "@/lib/api/types";
 import { formatCompensation, formatDeadline, titleCaseEnum } from "@/lib/format";
-import { Badge } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { JobMatchSummary } from "./JobMatchSummary";
 import { StartApplication } from "@/components/applications/StartApplication";
 
@@ -12,9 +13,6 @@ export interface JobCardProps {
   job: Job;
   className?: string;
 }
-
-// The detailed analysis page /jobs/[jobId] is implemented in Phase 2 Prompt 2.
-const ENABLE_ANALYSIS_ROUTE = true;
 
 function stripHtml(text: string): string {
   return text
@@ -31,7 +29,7 @@ function stripHtml(text: string): string {
     .trim();
 }
 
-export function JobCard({ job }: JobCardProps) {
+export function JobCard({ job, className }: JobCardProps) {
   const [showFullDesc, setShowFullDesc] = useState(false);
   const descId = useId();
 
@@ -41,22 +39,22 @@ export function JobCard({ job }: JobCardProps) {
   const rawDesc = job.description ? stripHtml(job.description) : "";
   const isDescLong = rawDesc.length > 240;
   const displayDesc = isDescLong && !showFullDesc ? `${rawDesc.slice(0, 240)}…` : rawDesc;
+  const analysisUrl = `/jobs/${encodeURIComponent(job.id)}`;
 
   return (
-    <article className="py-6 first:pt-2 last:pb-2 border-b border-hairline last:border-b-0 space-y-4">
-      {/* Top Header: Company eyebrow, title, and action */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="space-y-1">
-          <span className="eyebrow block text-sage-deep">{job.company}</span>
-          <h3 className="font-display text-xl sm:text-2xl font-medium text-ink tracking-tight">
+    <article className={cn("min-w-0 space-y-4 rounded-xl border border-hairline bg-paper-raised p-4 sm:p-5", className)}>
+      <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-start">
+        <div className="min-w-0 space-y-1">
+          <span className="block wrap-anywhere text-xs font-semibold text-moss">{job.company}</span>
+          <h3 className="wrap-anywhere font-display text-xl font-medium tracking-tight text-ink sm:text-2xl">
             <Link
-              href={`/jobs/${encodeURIComponent(job.id)}`}
+              href={analysisUrl}
               className="hover:underline hover:text-ink-soft transition-colors"
             >
               {job.title}
             </Link>
           </h3>
-          <p className="text-xs text-ink-soft flex items-center gap-2">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 wrap-anywhere text-sm text-ink-soft">
             <span>{job.location}</span>
             {job.additional_locations && job.additional_locations.length > 0 && (
               <span className="text-sage-deep">
@@ -66,28 +64,11 @@ export function JobCard({ job }: JobCardProps) {
           </p>
         </div>
 
-        <div className="shrink-0 flex flex-col items-start sm:items-end gap-1.5 sm:self-start">
-          <div className="flex items-center gap-2">
-            {ENABLE_ANALYSIS_ROUTE ? (
-              <Link
-                href={`/jobs/${encodeURIComponent(job.id)}`}
-                className="text-xs text-ink underline hover:text-ink-soft"
-              >
-                View analysis
-              </Link>
-            ) : (
-              <span className="text-[11px] text-sage-deep">
-                {/* View analysis route available in Prompt 2 */}
-              </span>
-            )}
-            <StartApplication job={job} />
-          </div>
-
-          {job.application_mode === "assisted" && (
-            <p className="text-[11px] text-sage-deep text-left sm:text-right">
-              Assisted application: you finish on the employer&apos;s site.
-            </p>
-          )}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button href={analysisUrl} variant="quiet" size="sm" className="min-h-9 px-2 !text-xs">
+            View analysis
+          </Button>
+          <StartApplication job={job} />
         </div>
       </div>
 
@@ -120,7 +101,7 @@ export function JobCard({ job }: JobCardProps) {
 
       {/* Description */}
       {rawDesc && (
-        <div className="text-xs text-ink-soft leading-relaxed space-y-1">
+        <div className="space-y-1 wrap-anywhere text-sm leading-relaxed text-ink-soft">
           <p id={descId}>{displayDesc}</p>
           {isDescLong && (
             <button

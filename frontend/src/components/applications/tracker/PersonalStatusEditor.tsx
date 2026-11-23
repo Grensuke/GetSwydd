@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import type { TrackedApplication } from "@/lib/applications/normalize";
 import { type PersonalStage, PERSONAL_STAGE_MAP } from "@/lib/applications/status";
 import { usePersonalStatus } from "@/lib/applications/personal-status";
-import { Button, Field, InlineNotice, Select, Sheet, Textarea } from "@/components/ui";
+import { Button, Field, InlineNotice, Input, Select, Sheet, Textarea } from "@/components/ui";
 
 export interface PersonalStatusEditorProps {
   open: boolean;
@@ -75,7 +75,7 @@ function PersonalStatusForm({
       {/* App identity snippet */}
       <div className="p-3 bg-paper rounded-md border border-hairline space-y-1 text-xs">
         <span className="eyebrow block text-sage-deep">{app.company}</span>
-        <p className="font-display text-base font-medium text-ink">{app.jobTitle}</p>
+        <p className="wrap-anywhere font-display text-base font-medium text-ink">{app.jobTitle}</p>
         <p className="text-sage-deep text-[11px] font-mono">Confirmed: {app.confirmedStage}</p>
       </div>
 
@@ -122,21 +122,20 @@ function PersonalStatusForm({
 
         <Field label="Relevant Date (Optional)" hint="e.g. Interview date, assignment deadline, or follow-up">
           {({ id }) => (
-            <input
+            <Input
               id={id}
               type="date"
               value={relevantDate}
               onChange={(e) => setRelevantDate(e.currentTarget.value)}
-              className="block w-full rounded-md border border-hairline bg-paper-raised px-3 py-1.5 text-xs text-ink focus:border-ink focus:ring-1 focus:ring-ink"
             />
           )}
         </Field>
 
-        <div className="pt-3 border-t border-hairline flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">
           <div>
             {status && (
               confirmDelete ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <Button
                     type="button"
                     variant="danger"
