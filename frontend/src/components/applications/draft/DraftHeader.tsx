@@ -48,7 +48,7 @@ export function DraftHeader({ draft }: DraftHeaderProps) {
         </div>
 
         <div className="space-y-1">
-          <span className="eyebrow block text-sage-deep">ATTACHED RESUME</span>
+          <span className="eyebrow block text-sage-deep">RESUME USED</span>
           <div className="flex items-center gap-2">
             <span className="font-mono text-ink text-[11px] truncate" title={draft.selected_resume}>
               {draft.selected_resume}
@@ -57,7 +57,7 @@ export function DraftHeader({ draft }: DraftHeaderProps) {
               href="/resumes"
               className="text-sage-deep hover:text-ink underline text-[11px] shrink-0"
             >
-              View in resumes &rarr;
+              Manage resumes &rarr;
             </Link>
           </div>
         </div>

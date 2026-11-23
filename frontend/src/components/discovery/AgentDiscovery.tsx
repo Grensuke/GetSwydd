@@ -4,13 +4,17 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { JobMatchSummary } from "@/components/jobs/JobMatchSummary";
 import { Button, Field, InlineNotice, Textarea } from "@/components/ui";
-import { discoverJobs, type JobDiscoveryResult } from "@/lib/api";
+import { discoverJobs, type JobDiscoveryResult, type ProfileSource } from "@/lib/api";
 import { formatDeadline, titleCaseEnum } from "@/lib/format";
 
-const example = "Find five internships in India.";
+interface AgentDiscoveryProps {
+  onSourcesRefreshed?: () => void;
+  resume?: ProfileSource;
+}
 
-export function AgentDiscovery({ onSourcesRefreshed }: { onSourcesRefreshed: () => void }) {
-  const [message, setMessage] = useState("");
+export function AgentDiscovery({ onSourcesRefreshed, resume }: AgentDiscoveryProps) {
+  const example = resume ? "Find jobs in India that match my resume." : "Find five internships in India.";
+  const [message, setMessage] = useState(resume ? example : "");
   const [submittedMessage, setSubmittedMessage] = useState("");
   const [result, setResult] = useState<JobDiscoveryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +29,14 @@ export function AgentDiscovery({ onSourcesRefreshed }: { onSourcesRefreshed: () 
     setError(null);
     setResult(null);
     try {
-      const response = await discoverJobs({ message: text, resume_id: resumeId, refresh: true });
+      const response = await discoverJobs({
+        message: text,
+        resume_id: resumeId ?? resume?.resume_id,
+        refresh: true,
+        require_skill_match: resume ? true : undefined,
+      });
       setResult(response);
-      if (response.refresh_sources.length > 0) onSourcesRefreshed();
+      if (response.refresh_sources.length > 0) onSourcesRefreshed?.();
     } catch (error) {
       setError(error instanceof Error ? error.message : "The job agent could not complete your search.");
     } finally {
@@ -53,10 +62,15 @@ export function AgentDiscovery({ onSourcesRefreshed }: { onSourcesRefreshed: () 
 
   return (
     <details className="mb-6 rounded-lg border border-hairline bg-paper-raised p-4">
-      <summary className="cursor-pointer font-semibold text-ink">Search with AI</summary>
+      <summary className="cursor-pointer font-semibold text-ink">
+        {resume ? "Find jobs with this resume" : "Search with AI"}
+      </summary>
       <div className="mt-3 space-y-4">
         <form onSubmit={submit} className="space-y-3">
-          <Field label="What jobs are you looking for?" hint="The agent searches configured employer feeds.">
+          <Field
+            label="What jobs are you looking for?"
+            hint={resume ? "Results need at least one skill match from this resume." : "The agent searches configured employer feeds."}
+          >
             {({ id, ariaDescribedBy }) => (
               <Textarea
                 id={id}

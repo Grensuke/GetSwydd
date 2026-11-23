@@ -15,6 +15,7 @@ class DiscoveryRequest(BaseModel):
     resume_id: str | None = Field(default=None, min_length=1, max_length=120)
     limit: int | None = Field(default=None, ge=1, le=10)
     refresh: StrictBool = False
+    require_skill_match: StrictBool = False
 
 
 class DiscoveryPay(BaseModel):

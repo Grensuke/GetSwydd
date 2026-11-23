@@ -11,6 +11,12 @@ export interface AnswersToCopyProps {
 
 export function AnswersToCopy({ draft, currentAnswers }: AnswersToCopyProps) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const contactItems = [
+    { key: "email", label: "Email", value: draft.contact?.email },
+    { key: "phone", label: "Phone", value: draft.contact?.phone },
+    { key: "linkedin", label: "LinkedIn", value: draft.contact?.linkedin },
+    { key: "github", label: "GitHub", value: draft.contact?.github },
+  ].filter((item) => item.value);
 
   const getAnswerText = (qId: string, fallback: string | null) => {
     if (currentAnswers && qId in currentAnswers) {
@@ -33,12 +39,13 @@ export function AnswersToCopy({ draft, currentAnswers }: AnswersToCopyProps) {
   }
 
   async function copyAllAnswers() {
-    const formatted = draft.screening_questions
-      .map((q) => {
+    const formatted = [
+      ...contactItems.map((item) => `${item.label}: ${item.value}`),
+      ...draft.screening_questions.map((q) => {
         const ans = getAnswerText(q.id, q.answer);
         return `Q: ${q.question}\nA: ${ans || "[Needs your input]"}\n`;
-      })
-      .join("\n");
+      }),
+    ].join("\n");
 
     await copyToClipboard("all", formatted);
   }
@@ -49,7 +56,7 @@ export function AnswersToCopy({ draft, currentAnswers }: AnswersToCopyProps) {
         <span className="flex items-center gap-1.5">
           <span>Answers to copy</span>
           <span className="text-sage-deep font-mono text-[11px]">
-            ({draft.screening_questions.length})
+            ({draft.screening_questions.length + contactItems.length})
           </span>
         </span>
         <span className="text-[10px] text-sage-deep transition-transform group-open:rotate-180">
@@ -74,6 +81,17 @@ export function AnswersToCopy({ draft, currentAnswers }: AnswersToCopyProps) {
         </div>
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          {contactItems.map((item) => (
+            <div key={item.key} className="flex items-start justify-between gap-3 rounded border border-hairline p-2">
+              <div className="min-w-0">
+                <p className="font-medium text-ink">{item.label}</p>
+                <p className="break-words text-ink-soft">{item.value}</p>
+              </div>
+              <Button variant="quiet" size="sm" onClick={() => copyToClipboard(`contact-${item.key}`, item.value ?? "")}>
+                {copiedKey === `contact-${item.key}` ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          ))}
           {draft.screening_questions.map((q) => {
             const ans = getAnswerText(q.id, q.answer);
             const isCopied = copiedKey === q.id;

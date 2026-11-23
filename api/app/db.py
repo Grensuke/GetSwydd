@@ -24,6 +24,7 @@ def init_db(db_path: Optional[str] = None) -> None:
     conn = sqlite3.connect(target_path)
     try:
         with conn:
+            conn.execute("BEGIN IMMEDIATE")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS application_drafts (
                     id TEXT PRIMARY KEY,
@@ -55,9 +56,15 @@ def init_db(db_path: Optional[str] = None) -> None:
                     extracted_text TEXT NOT NULL,
                     suggested_facts TEXT NOT NULL,
                     confirmed_facts TEXT,
+                    suggested_contact TEXT,
+                    confirmed_contact TEXT,
                     revision INTEGER NOT NULL DEFAULT 0
                 )
             """)
+            resume_columns = {row[1] for row in conn.execute("PRAGMA table_info(resumes)")}
+            for column in ("suggested_contact", "confirmed_contact"):
+                if column not in resume_columns:
+                    conn.execute(f"ALTER TABLE resumes ADD COLUMN {column} TEXT")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS application_details (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -118,12 +125,14 @@ def save_draft(draft: ApplicationDraft, db_path: Optional[str] = None) -> None:
     conn = sqlite3.connect(target_path)
     try:
         with conn:
-            conn.execute(
+            saved = conn.execute(
                 """
                 INSERT INTO application_drafts (
                     id, job_id, job_title, company, candidate_name,
                     selected_resume, ready_for_review, data_json, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                )
+                SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                WHERE ? IS NULL OR EXISTS (SELECT 1 FROM resumes WHERE id = ?)
                 """,
                 (
                     draft.id,
@@ -136,8 +145,12 @@ def save_draft(draft: ApplicationDraft, db_path: Optional[str] = None) -> None:
                     draft.model_dump_json(),
                     draft.created_at,
                     draft.updated_at,
+                    draft.resume_id,
+                    draft.resume_id,
                 ),
             )
+            if saved.rowcount == 0:
+                raise DraftConflict("The selected resume was removed. Choose another resume.")
     finally:
         conn.close()
 

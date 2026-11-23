@@ -1,12 +1,13 @@
 from pathlib import PurePosixPath
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Response, UploadFile
 
 from app.resume_models import ApplicationDetails, ConfirmedProfile, ResumeDetail, ResumeReview, ResumeSummary
 from app.resume_parser import MAX_FILE_BYTES, ResumeParseError, parse_resume
 from app.resume_store import (
     StaleResumeReview,
     confirm_resume,
+    delete_resume,
     get_application_details,
     get_confirmed_profile,
     get_resume,
@@ -28,10 +29,10 @@ def upload_resume(file: UploadFile) -> ResumeDetail:
     if len(content) > MAX_FILE_BYTES:
         raise HTTPException(status_code=413, detail="Choose a resume that is 5 MB or smaller.")
     try:
-        text, facts = parse_resume(content, extension)
+        text, facts, contact = parse_resume(content, extension)
     except ResumeParseError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return store_resume(filename, content, text, facts)
+    return store_resume(filename, content, text, facts, contact)
 
 
 @router.get("/resumes", response_model=list[ResumeSummary])
@@ -45,6 +46,12 @@ def get_resume_detail(resume_id: str) -> ResumeDetail:
     if result is None:
         raise HTTPException(status_code=404, detail="Resume not found.")
     return result
+
+
+@router.delete("/resumes/{resume_id}", status_code=204)
+def remove_resume(resume_id: str) -> Response:
+    delete_resume(resume_id)
+    return Response(status_code=204)
 
 
 @router.put("/resumes/{resume_id}/review", response_model=ResumeDetail)

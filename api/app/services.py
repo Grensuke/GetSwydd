@@ -144,6 +144,7 @@ def prepare_draft_for_job(
         candidate_name=candidate_name,
         selected_resume=selected_resume,
         resume_id=resume.id if resume is not None else None,
+        contact=resume.confirmed_contact if resume is not None else None,
         mode="assisted" if job.application_mode == "assisted" else "personalized" if resume is not None else "demo",
         apply_url=job.apply_url,
         form_status=form_status,
@@ -162,6 +163,19 @@ QUESTION_SKILLS = {
 }
 
 ASSISTED_FACT_LABELS = {
+    "email": "email",
+    "email address": "email",
+    "phone": "phone",
+    "phone number": "phone",
+    "mobile number": "phone",
+    "linkedin": "linkedin",
+    "linkedin url": "linkedin",
+    "linkedin profile": "linkedin",
+    "linkedin profile url": "linkedin",
+    "github": "github",
+    "github url": "github",
+    "github profile": "github",
+    "github profile url": "github",
     "availability": "availability",
     "what is your availability": "availability",
     "what is your earliest start date and weekly availability": "availability",
@@ -195,6 +209,10 @@ def _personalized_answers(
     answers: dict[str, str] = {}
     evidence: dict[str, list[AnswerEvidence]] = {}
     source = ProfileSource(resume_id=resume.id, filename=resume.filename)
+    if resume.confirmed_contact:
+        for field, value in resume.confirmed_contact.model_dump(exclude_none=True).items():
+            answers[field] = value
+            evidence[field] = [AnswerEvidence(value=value, resume=source)]
     skills = resume.confirmed_facts.skills if resume.confirmed_facts else []
     for question, requirements in QUESTION_SKILLS.items():
         accepted = {name for requirement in requirements for name in requirement.accepted_names}

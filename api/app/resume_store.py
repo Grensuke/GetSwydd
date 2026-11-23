@@ -2,6 +2,7 @@
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
+from pathlib import PurePath
 from uuid import uuid4
 
 from app.db import get_db_path
@@ -10,14 +11,16 @@ from app.resume_models import (
     ConfirmedProfile,
     ProfileFact,
     ProfileSource,
+    ResumeContact,
     ResumeDetail,
     ResumeFacts,
     ResumeReview,
     ResumeSummary,
 )
+from app.resume_parser import ResumeParseError, parse_resume
 
 SUMMARY_COLUMNS = "id, filename, uploaded_at, confirmed_facts IS NOT NULL AS reviewed"
-DETAIL_COLUMNS = f"{SUMMARY_COLUMNS}, extracted_text, suggested_facts, confirmed_facts, revision"
+DETAIL_COLUMNS = f"{SUMMARY_COLUMNS}, extracted_text, suggested_facts, confirmed_facts, suggested_contact, confirmed_contact, revision"
 
 
 def _connect() -> sqlite3.Connection:
@@ -31,10 +34,17 @@ def _detail(row: sqlite3.Row) -> ResumeDetail:
     record["suggested_facts"] = ResumeFacts.model_validate_json(row["suggested_facts"])
     if row["confirmed_facts"] is not None:
         record["confirmed_facts"] = ResumeFacts.model_validate_json(row["confirmed_facts"])
+    for key in ("suggested_contact", "confirmed_contact"):
+        if row[key] is not None:
+            record[key] = ResumeContact.model_validate_json(row[key])
+    if row["suggested_contact"] is None:
+        del record["suggested_contact"]
     return ResumeDetail.model_validate(record)
 
 
-def store_resume(filename: str, content: bytes, text: str, facts: ResumeFacts) -> ResumeDetail:
+def store_resume(
+    filename: str, content: bytes, text: str, facts: ResumeFacts, contact: ResumeContact | None = None
+) -> ResumeDetail:
     record = ResumeDetail(
         id=f"resume-{uuid4().hex}",
         filename=filename,
@@ -43,15 +53,17 @@ def store_resume(filename: str, content: bytes, text: str, facts: ResumeFacts) -
         extracted_text=text,
         suggested_facts=facts,
         confirmed_facts=None,
+        suggested_contact=contact or ResumeContact(),
         revision=0,
     )
     with closing(_connect()) as conn, conn:
         conn.execute(
             """
-            INSERT INTO resumes (id, filename, uploaded_at, original_file, extracted_text, suggested_facts)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO resumes (id, filename, uploaded_at, original_file, extracted_text, suggested_facts, suggested_contact)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (record.id, filename, record.uploaded_at, content, text, facts.model_dump_json()),
+            (record.id, filename, record.uploaded_at, content, text, facts.model_dump_json(),
+             record.suggested_contact.model_dump_json()),
         )
     return record
 
@@ -63,9 +75,30 @@ def list_resumes() -> list[ResumeSummary]:
 
 
 def get_resume(resume_id: str) -> ResumeDetail | None:
-    with closing(_connect()) as conn:
+    with closing(_connect()) as conn, conn:
         row = conn.execute(f"SELECT {DETAIL_COLUMNS} FROM resumes WHERE id = ?", (resume_id,)).fetchone()
-        return _detail(row) if row else None
+        if row is None:
+            return None
+        if row["suggested_contact"] is None:
+            original = conn.execute("SELECT original_file FROM resumes WHERE id = ?", (resume_id,)).fetchone()
+            if original is None:
+                return None
+            try:
+                text, facts, contact = parse_resume(original[0], PurePath(row["filename"]).suffix.lower())
+            except ResumeParseError:
+                text, facts, contact = row["extracted_text"], ResumeFacts.model_validate_json(row["suggested_facts"]), ResumeContact()
+            conn.execute(
+                "UPDATE resumes SET extracted_text = ?, suggested_facts = ?, suggested_contact = ? "
+                "WHERE id = ? AND suggested_contact IS NULL",
+                (text, facts.model_dump_json(), contact.model_dump_json(), resume_id),
+            )
+            row = conn.execute(f"SELECT {DETAIL_COLUMNS} FROM resumes WHERE id = ?", (resume_id,)).fetchone()
+        return _detail(row)
+
+
+def delete_resume(resume_id: str) -> None:
+    with closing(_connect()) as conn, conn:
+        conn.execute("DELETE FROM resumes WHERE id = ?", (resume_id,))
 
 
 class StaleResumeReview(ValueError):
@@ -76,11 +109,13 @@ def confirm_resume(resume_id: str, review: ResumeReview) -> ResumeDetail | None:
     with closing(_connect()) as conn, conn:
         row = conn.execute(
             f"""
-            UPDATE resumes SET confirmed_facts = ?, revision = revision + 1
+            UPDATE resumes SET confirmed_facts = ?, confirmed_contact = COALESCE(?, confirmed_contact),
+                revision = revision + 1
             WHERE id = ? AND revision = ?
             RETURNING {DETAIL_COLUMNS}
             """,
-            (review.facts.model_dump_json(), resume_id, review.revision),
+            (review.facts.model_dump_json(), review.contact.model_dump_json() if review.contact is not None else None,
+             resume_id, review.revision),
         ).fetchone()
         if row:
             return _detail(row)

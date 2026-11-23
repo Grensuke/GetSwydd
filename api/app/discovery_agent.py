@@ -302,6 +302,13 @@ def _search(state: DiscoveryState) -> DiscoveryState:
             for fact in profile.facts if any(source.resume_id == resume.resume_id for source in fact.sources)
         ])
     matched = match_jobs(jobs, profile, get_application_details())
+    if request.require_skill_match:
+        matched = [job for job in matched if job.match and job.match.matched_skills > 0]
+        if not matched:
+            return _decision(
+                "no_results", "No listings match both this search and your confirmed skills.",
+                filters=filters, selected_resume=resume, refresh_sources=refreshed, refresh_in_progress=refreshing,
+            )
     prioritize_india = not filters.preferences.location_keywords and not filters.applicant_location
 
     def rank(job: Job):

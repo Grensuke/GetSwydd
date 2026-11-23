@@ -3,7 +3,7 @@ from typing import Annotated, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints, model_validator
 
-from app.resume_models import ProfileFact, ProfileSource
+from app.resume_models import ProfileFact, ProfileSource, ResumeContact
 
 
 class HealthResponse(BaseModel):
@@ -196,6 +196,7 @@ class ApplicationDraft(BaseModel):
     candidate_name: str = Field(..., description="Candidate name")
     selected_resume: str = Field(..., description="Recommended resume selected for this application")
     resume_id: str | None = None
+    contact: ResumeContact | None = None
     mode: Literal["demo", "personalized", "assisted"] = "demo"
     apply_url: str | None = None
     form_status: Literal["loaded", "partial", "unavailable"] | None = None
