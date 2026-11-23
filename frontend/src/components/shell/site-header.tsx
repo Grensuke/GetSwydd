@@ -84,7 +84,7 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
             className={cn(
               "block px-3 py-2 rounded-md text-sm font-medium transition-colors",
               active
-                ? "bg-cream/60 text-ink font-semibold"
+                ? "bg-moss-tint text-moss font-semibold"
                 : "text-ink-soft hover:bg-cream/30 hover:text-ink"
             )}
             aria-current={active ? "page" : undefined}
@@ -99,19 +99,10 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
 
 export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    function handleScroll() {
-      setScrolled(window.scrollY > 10);
-    }
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Trap focus and handle escape for mobile sheet
+  // Return focus to the menu button when Escape closes navigation.
   useEffect(() => {
     if (!mobileOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -125,15 +116,10 @@ export function SiteHeader() {
   }, [mobileOpen]);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-30 bg-paper border-b transition-colors duration-150",
-        scrolled ? "border-hairline-strong" : "border-hairline"
-      )}
-    >
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="relative z-30 border-b border-hairline bg-paper-raised">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:px-8">
         {/* Left: Brand Monogram + Wordmark */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="group flex w-fit items-center gap-2.5">
           <svg
             className="w-7 h-7 text-ink"
             viewBox="0 0 28 28"
@@ -161,8 +147,8 @@ export function SiteHeader() {
         </Suspense>
 
         {/* Right slot: ThemeToggle + AlertsSlot + Mobile Menu Button */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="hidden sm:block">
+        <div className="flex items-center justify-end gap-2.5 sm:gap-3">
+          <div className="hidden md:block">
             <ThemeToggle size="sm" />
           </div>
           <AlertsSlot />
@@ -204,7 +190,7 @@ export function SiteHeader() {
           <Suspense fallback={null}>
             <MobileNavLinks onSelect={() => setMobileOpen(false)} />
           </Suspense>
-          <div className="pt-2 border-t border-hairline flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hairline pt-2">
             <span className="text-xs text-sage-deep">Color Theme</span>
             <ThemeToggle size="sm" />
           </div>

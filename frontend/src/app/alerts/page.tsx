@@ -71,7 +71,7 @@ export default function AlertsPage() {
             onClick={() => handleToggleFilter(false)}
             className={cn(
               "px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors cursor-pointer",
-              !unreadOnly ? "bg-cream text-ink font-bold" : "bg-paper-raised text-ink-soft hover:bg-cream/40"
+              !unreadOnly ? "bg-cream text-on-cream font-bold" : "bg-paper-raised text-ink-soft hover:bg-cream/40"
             )}
           >
             All alerts
@@ -81,7 +81,7 @@ export default function AlertsPage() {
             onClick={() => handleToggleFilter(true)}
             className={cn(
               "px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors cursor-pointer",
-              unreadOnly ? "bg-cream text-ink font-bold" : "bg-paper-raised text-ink-soft hover:bg-cream/40"
+              unreadOnly ? "bg-cream text-on-cream font-bold" : "bg-paper-raised text-ink-soft hover:bg-cream/40"
             )}
           >
             Unread only

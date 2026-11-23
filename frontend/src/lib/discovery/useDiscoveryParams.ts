@@ -5,7 +5,7 @@
  * Uses router.replace with { scroll: false } for typing and filter changes,
  * and router.push for page changes so pagination preserves history while filter edits don't flood it.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DEFAULT_PARAMS,
@@ -29,6 +29,9 @@ export function useDiscoveryParams() {
   const [prevQ, setPrevQ] = useState(params.q);
   const [prevLocation, setPrevLocation] = useState(params.location);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
 
   // Sync draft state when URL params change (e.g. back/forward navigation or external reset)
   if (params.q !== prevQ) {
@@ -79,9 +82,10 @@ export function useDiscoveryParams() {
 
   const setPage = useCallback(
     (page: number) => {
-      pushParams({ ...params, page });
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      pushParams({ ...params, q: draftQ, location: draftLocation, page });
     },
-    [params, pushParams]
+    [params, draftQ, draftLocation, pushParams]
   );
 
   const setTextDebounced = useCallback(
@@ -91,11 +95,11 @@ export function useDiscoveryParams() {
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        const next = { ...params, [key]: value, page: 1 };
+        const next = { ...params, q: draftQ, location: draftLocation, [key]: value, page: 1 };
         replaceParams(next);
       }, DEBOUNCE_MS);
     },
-    [params, replaceParams]
+    [params, draftQ, draftLocation, replaceParams]
   );
 
   const commitSearchImmediately = useCallback(() => {
@@ -123,7 +127,7 @@ export function useDiscoveryParams() {
     if (params.location) count++;
     if (params.internshipsOnly) count++;
     count += params.workplace.length;
-    count += params.employment.length;
+    if (!params.internshipsOnly) count += params.employment.length;
     count += params.experienceLevel.length;
     if (params.closingWithinDays !== null) count++;
     if (params.usePreferences) count++;

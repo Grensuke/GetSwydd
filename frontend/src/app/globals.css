@@ -20,6 +20,7 @@
   /* Lines */
   --color-hairline: var(--color-hairline);
   --color-hairline-strong: var(--color-hairline-strong);
+  --color-control-border: var(--color-control-border);
 
   /* Semantic */
   --color-moss: var(--color-moss);
@@ -36,31 +37,31 @@
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 
-  /* Restrained radiuses */
-  --radius-sm: 2px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  --color-paper: #F6EFE3;
-  --color-paper-raised: #FBF7EF;
+  --color-paper: #F6F5EF;
+  --color-paper-raised: #FFFEFA;
   --color-cream: #E8D2B5;
   --color-cream-deep: #D9BE98;
   --color-sage: #A5A79B;
   --color-sage-soft: #C9CABF;
-  --color-sage-deep: #6F7366;
+  --color-sage-deep: #5B6054;
   --color-ink: #2B2F27;
   --color-ink-soft: #4A4E44;
-  --color-hairline: #D8CCB6;
-  --color-hairline-strong: #BDB59F;
-  --color-moss: #5C7048;
+  --color-hairline: #DDDCD1;
+  --color-hairline-strong: #C5C6B8;
+  --color-control-border: #898E7D;
+  --color-moss: #455C35;
   --color-moss-tint: #E1E6D3;
-  --color-ochre: #A8761F;
+  --color-ochre: #795211;
   --color-ochre-tint: #F1E2BF;
-  --color-brick: #9C4531;
+  --color-brick: #923E2C;
   --color-brick-tint: #F0D9D0;
   --color-slate: #55656B;
   --color-slate-tint: #DCE3E4;
@@ -79,6 +80,7 @@
   --color-ink-soft: #C9C0AE;
   --color-hairline: #3C3F35;
   --color-hairline-strong: #55584B;
+  --color-control-border: #74766A;
   --color-moss: #A9C08E;
   --color-moss-tint: #2B3523;
   --color-ochre: #E0B65E;
@@ -103,6 +105,7 @@
     --color-ink-soft: #C9C0AE;
     --color-hairline: #3C3F35;
     --color-hairline-strong: #55584B;
+    --color-control-border: #74766A;
     --color-moss: #A9C08E;
     --color-moss-tint: #2B3523;
     --color-ochre: #E0B65E;
@@ -125,8 +128,6 @@
     font-family: var(--font-sans);
     line-height: 1.6;
     min-height: 100vh;
-    /* Subtle paper grain: inline SVG noise background at ~2% opacity */
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -137,7 +138,7 @@
 
   ::selection {
     background-color: var(--color-cream);
-    color: var(--color-ink);
+    color: var(--color-on-cream);
   }
 
   :focus-visible {

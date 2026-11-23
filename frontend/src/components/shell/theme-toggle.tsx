@@ -29,7 +29,7 @@ export function ThemeToggle({ className, size = "sm" }: ThemeToggleProps) {
         className
       )}
     >
-      {options.map((opt) => {
+      {options.map((opt, index) => {
         const isSelected = mounted ? theme === opt.value : opt.value === "system";
 
         return (
@@ -40,11 +40,20 @@ export function ThemeToggle({ className, size = "sm" }: ThemeToggleProps) {
             aria-checked={isSelected}
             tabIndex={isSelected ? 0 : -1}
             onClick={() => setTheme(opt.value)}
+            onKeyDown={(event) => {
+              const step = ["ArrowLeft", "ArrowUp"].includes(event.key) ? -1
+                : ["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : 0;
+              if (step === 0) return;
+              event.preventDefault();
+              const next = (index + step + options.length) % options.length;
+              setTheme(options[next].value);
+              event.currentTarget.parentElement?.querySelectorAll("button")[next]?.focus();
+            }}
             className={cn(
               "rounded font-medium transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink",
               isSmall ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
               isSelected
-                ? "bg-cream text-[var(--color-on-cream,#2B2F27)] font-semibold shadow-[0_1px_0_rgba(43,47,39,0.06)]"
+                ? "bg-cream text-on-cream font-semibold shadow-[0_1px_0_rgba(43,47,39,0.06)]"
                 : "text-sage-deep hover:text-ink hover:bg-paper-raised"
             )}
           >

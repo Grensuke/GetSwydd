@@ -13,14 +13,14 @@ export function Panel({ eyebrow, title, actions, className, children, ...props }
   return (
     <div
       className={cn(
-        "rounded-lg border border-hairline bg-paper-raised p-5 shadow-[0_1px_0_rgba(43,47,39,0.04)]",
+        "rounded-xl border border-hairline bg-paper-raised p-4 shadow-[0_2px_8px_rgba(43,47,39,0.04)] sm:p-5",
         className
       )}
       {...props}
     >
       {hasHeader && (
-        <div className="mb-4 flex items-start justify-between gap-4 border-b border-hairline pb-3">
-          <div>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-3">
+          <div className="min-w-0 break-words">
             {eyebrow && <span className="eyebrow block mb-1">{eyebrow}</span>}
             {title && <h3 className="text-base font-semibold text-ink">{title}</h3>}
           </div>

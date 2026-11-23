@@ -12,7 +12,6 @@ export interface SourceTabsProps {
 
 /**
  * Accessible tablist for switching job source.
- * Editorial underline style (active = ink text + 2px ink rule; inactive = ink-soft).
  * Roving tabindex and explanatory label per selection.
  */
 export function SourceTabs({ value, onChange, className }: SourceTabsProps) {
@@ -47,24 +46,26 @@ export function SourceTabs({ value, onChange, className }: SourceTabsProps) {
       <div
         role="tablist"
         aria-label="Job source"
-        className="flex border-b border-hairline overflow-x-auto snap-x scrollbar-none gap-6"
+        className="inline-flex max-w-full snap-x gap-1 overflow-x-auto rounded-lg border border-hairline bg-paper p-1"
       >
         {SOURCE_OPTIONS.map((opt, idx) => {
           const selected = value === opt.value;
           return (
             <button
               key={opt.value}
+              id={`source-tab-${opt.value}`}
               role="tab"
               type="button"
+              aria-controls="catalog-results"
               aria-selected={selected}
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(opt.value)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
               className={cn(
-                "pb-2.5 text-xs font-semibold uppercase tracking-[0.08em] transition-colors duration-150 cursor-pointer snap-start shrink-0 relative",
+                "min-h-8 shrink-0 snap-start cursor-pointer rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-offset-[-2px] sm:px-3",
                 selected
-                  ? "text-ink font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-ink"
-                  : "text-ink-soft hover:text-ink"
+                  ? "bg-moss-tint text-moss"
+                  : "text-ink-soft hover:bg-paper-raised hover:text-ink"
               )}
             >
               {opt.label}
@@ -73,7 +74,7 @@ export function SourceTabs({ value, onChange, className }: SourceTabsProps) {
         })}
       </div>
 
-      <p className="text-xs text-sage-deep italic">
+      <p className="text-xs text-sage-deep">
         {currentOption.description}
       </p>
     </div>

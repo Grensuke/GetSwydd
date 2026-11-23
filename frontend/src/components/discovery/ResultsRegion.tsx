@@ -131,13 +131,11 @@ export function ResultsRegion({
         )}
         aria-busy={isRefetching}
       >
-        <Panel className="p-6">
-          <div className="divide-y divide-hairline">
-            {jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
-        </Panel>
+        <div className="grid gap-3">
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
       </div>
 
       <Pagination

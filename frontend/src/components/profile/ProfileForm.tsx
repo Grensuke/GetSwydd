@@ -37,10 +37,10 @@ export function ProfileForm({
 }: ProfileFormProps) {
   return (
     <Panel eyebrow="REUSED PARTICULARS" title="Identity & Work Logistics">
-      <form onSubmit={onSubmit} className="space-y-6">
+      <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5">
         {/* 1. Candidate Full Name (Required) */}
         <div className="space-y-2 p-4 rounded-md border border-hairline bg-paper">
-          <div className="flex items-center justify-between gap-2 border-b border-hairline pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-2">
             <span className="eyebrow">LEGAL IDENTITY</span>
             <SourceTag source={initialData?.candidate_name ? "user_supplied" : "missing"} />
           </div>
@@ -66,7 +66,7 @@ export function ProfileForm({
 
         {/* 2. Availability (Optional) */}
         <div className="space-y-2 p-4 rounded-md border border-hairline bg-paper">
-          <div className="flex items-center justify-between gap-2 border-b border-hairline pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-2">
             <span className="eyebrow">SCHEDULE & AVAILABILITY</span>
             <SourceTag source={initialData?.availability ? "user_supplied" : "missing"} />
           </div>
@@ -92,7 +92,7 @@ export function ProfileForm({
 
         {/* 3. UK Work Authorization (Optional Enum) */}
         <div className="space-y-2 p-4 rounded-md border border-hairline bg-paper">
-          <div className="flex items-center justify-between gap-2 border-b border-hairline pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-2">
             <span className="eyebrow">RIGHT TO WORK</span>
             <SourceTag source={initialData?.uk_work_authorization ? "user_supplied" : "missing"} />
           </div>
@@ -128,7 +128,7 @@ export function ProfileForm({
           </p>
         )}
 
-        <div className="flex items-center gap-3 pt-2">
+        <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button
             type="submit"
             variant="primary"

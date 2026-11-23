@@ -45,7 +45,7 @@ export function ResumeUploadZone({
                 event.currentTarget.value = "";
                 if (file) onFileSelected(file);
               }}
-              className="file:mr-2 file:rounded-sm file:bg-cream file:px-2 file:py-1 file:text-ink"
+              className="file:mr-2 file:rounded-sm file:bg-cream file:px-2 file:py-1 file:text-on-cream"
             />
           )}
         </Field>

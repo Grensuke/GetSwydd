@@ -53,10 +53,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       className={cn(
-        "block w-full rounded-md border bg-paper-raised px-3 py-1.5 text-sm text-ink placeholder:text-sage-deep/80 transition-colors duration-150",
+        "block w-full rounded-md border bg-paper-raised px-3 py-1.5 text-sm text-ink placeholder:text-sage-deep transition-colors duration-150",
         error
           ? "border-brick focus:border-brick focus:ring-1 focus:ring-brick"
-          : "border-hairline hover:border-hairline-strong focus:border-ink focus:ring-1 focus:ring-ink",
+          : "border-control-border hover:border-ink-soft focus:border-ink focus:ring-1 focus:ring-ink",
         className
       )}
       {...props}
@@ -77,10 +77,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       ref={ref}
       rows={rows}
       className={cn(
-        "block w-full rounded-md border bg-paper-raised px-3 py-2 text-sm text-ink placeholder:text-sage-deep/80 transition-colors duration-150 resize-y",
+        "block w-full rounded-md border bg-paper-raised px-3 py-2 text-sm text-ink placeholder:text-sage-deep transition-colors duration-150 resize-y",
         error
           ? "border-brick focus:border-brick focus:ring-1 focus:ring-brick"
-          : "border-hairline hover:border-hairline-strong focus:border-ink focus:ring-1 focus:ring-ink",
+          : "border-control-border hover:border-ink-soft focus:border-ink focus:ring-1 focus:ring-ink",
         className
       )}
       {...props}
@@ -100,10 +100,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     <select
       ref={ref}
       className={cn(
-        "block w-full rounded-md border bg-paper-raised px-3 py-1.5 text-sm text-ink transition-colors duration-150 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%228%22%20viewBox%3D%220%200%2012%208%22%3E%3Cpath%20fill%3D%22%236F7366%22%20d%3D%22M1.4%200L6%204.6%2010.6%200%2012%201.4l-6%206-6-6z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_6px] bg-[right_12px_center] bg-no-repeat pr-8",
+        "block w-full rounded-md border bg-paper-raised px-3 py-1.5 text-sm text-ink transition-colors duration-150 appearance-auto pr-2",
         error
           ? "border-brick focus:border-brick focus:ring-1 focus:ring-brick"
-          : "border-hairline hover:border-hairline-strong focus:border-ink focus:ring-1 focus:ring-ink",
+          : "border-control-border hover:border-ink-soft focus:border-ink focus:ring-1 focus:ring-ink",
         className
       )}
       {...props}

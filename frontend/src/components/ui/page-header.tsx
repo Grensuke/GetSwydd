@@ -1,6 +1,5 @@
 import React from "react";
 import { cn } from "@/lib/cn";
-import { Divider } from "./divider";
 
 export interface PageHeaderProps {
   eyebrow?: string;
@@ -12,11 +11,11 @@ export interface PageHeaderProps {
 
 export function PageHeader({ eyebrow, title, description, actions, className }: PageHeaderProps) {
   return (
-    <header className={cn("mb-6", className)}>
+    <header className={cn("mb-7 border-b border-hairline pb-5", className)}>
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          {eyebrow && <span className="eyebrow block mb-1.5">{eyebrow}</span>}
-          <h1 className="text-3xl sm:text-4xl font-medium tracking-tight text-ink font-display">
+        <div className="min-w-0">
+          {eyebrow && <span className="eyebrow mb-2 block text-moss">{eyebrow}</span>}
+          <h1 className="text-balance break-words font-display text-3xl font-medium leading-tight tracking-tight text-ink sm:text-4xl">
             {title}
           </h1>
           {description && (
@@ -25,9 +24,8 @@ export function PageHeader({ eyebrow, title, description, actions, className }: 
             </p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      <Divider variant="double" className="mt-5 mb-0" />
     </header>
   );
 }

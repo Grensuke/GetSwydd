@@ -1,10 +1,7 @@
 /**
  * URL-synced discovery state: typed params, URL parsing/serialization, and API param conversion.
  *
- * BACKEND NOTE: GET /api/v1/jobs accepts singular `workplace`, `employment`, `experience_level`
- * params (not arrays). The UI allows multi-select for future-proofing, but `toApiParams` sends
- * only the first selected value for each. Full arrays are stored in saved preferences via
- * PUT /api/v1/jobs/preferences.
+ * The catalog accepts one value per filter. Saved preferences support multiple values.
  */
 import type { Employment, ExperienceLevel, JobListParams, Workplace } from "@/lib/api/types";
 import { DEFAULT_PAGE_SIZE, type SourceValue } from "./options";
@@ -41,9 +38,10 @@ export const DEFAULT_PARAMS: DiscoveryParams = {
   pageSize: DEFAULT_PAGE_SIZE,
 };
 
-function parseArray<T extends string>(param: string | null, valid: readonly T[]): T[] {
+function parseCatalogFilter<T extends string>(param: string | null, valid: readonly T[]): T[] {
   if (!param) return [];
-  return param.split(",").filter((v): v is T => (valid as readonly string[]).includes(v));
+  const selected = param.split(",").find((v): v is T => (valid as readonly string[]).includes(v));
+  return selected ? [selected] : [];
 }
 
 const VALID_WORKPLACES: readonly Workplace[] = ["remote", "hybrid", "onsite"];
@@ -65,9 +63,9 @@ export function parseSearchParams(sp: URLSearchParams): DiscoveryParams {
     q: sp.get("q") ?? "",
     location: sp.get("location") ?? "",
     internshipsOnly: sp.get("internshipsOnly") === "true",
-    workplace: parseArray(sp.get("workplace"), VALID_WORKPLACES),
-    employment: parseArray(sp.get("employment"), VALID_EMPLOYMENT),
-    experienceLevel: parseArray(sp.get("experienceLevel"), VALID_EXPERIENCE),
+    workplace: parseCatalogFilter(sp.get("workplace"), VALID_WORKPLACES),
+    employment: parseCatalogFilter(sp.get("employment"), VALID_EMPLOYMENT),
+    experienceLevel: parseCatalogFilter(sp.get("experienceLevel"), VALID_EXPERIENCE),
     closingWithinDays: closingRaw ? Math.max(0, Math.min(90, parseInt(closingRaw, 10) || 0)) || null : null,
     usePreferences: sp.get("usePreferences") === "true",
     sort: (sortRaw && (VALID_SORTS as readonly string[]).includes(sortRaw) ? sortRaw : "default") as "default" | "match",
@@ -94,11 +92,6 @@ export function toSearchParams(params: DiscoveryParams): URLSearchParams {
   return sp;
 }
 
-/**
- * Convert DiscoveryParams to the backend's JobListParams.
- * Note: Backend accepts singular workplace/employment/experience_level.
- * When multiple are selected in the UI, only the first is sent.
- */
 export function toApiParams(params: DiscoveryParams): JobListParams {
   return {
     source: params.source,
@@ -107,7 +100,7 @@ export function toApiParams(params: DiscoveryParams): JobListParams {
     location: params.location || undefined,
     internships_only: params.internshipsOnly || undefined,
     workplace: params.workplace[0] ?? undefined,
-    employment: params.employment[0] ?? undefined,
+    employment: params.internshipsOnly ? "internship" : params.employment[0] ?? undefined,
     experience_level: params.experienceLevel[0] ?? undefined,
     closing_within_days: params.closingWithinDays ?? undefined,
     use_preferences: params.usePreferences || undefined,

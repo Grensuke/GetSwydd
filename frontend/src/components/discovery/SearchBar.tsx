@@ -35,35 +35,39 @@ export function SearchBar({
 
   return (
     <form onSubmit={handleSubmit} className={className} role="search" aria-label="Job search">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-        <div>
+      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="min-w-0">
           <label htmlFor="search-q" className="eyebrow block mb-1">
             Role or keyword
           </label>
           <Input
             id="search-q"
             type="search"
-            placeholder="Python developer, data analyst"
+            className="min-h-10"
+            placeholder="e.g. Python developer"
+            maxLength={120}
             value={q}
             onChange={(e) => onQChange(e.target.value)}
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="search-location" className="eyebrow block mb-1">
             Location
           </label>
           <Input
             id="search-location"
             type="search"
-            placeholder="Bengaluru, Hyderabad, Pune"
+            className="min-h-10"
+            placeholder="e.g. Bengaluru"
+            maxLength={120}
             value={location}
             onChange={(e) => onLocationChange(e.target.value)}
           />
         </div>
 
-        <div className="flex items-center gap-2 pb-0.5">
-          <Button variant="primary" size="md" type="submit">
+        <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-1">
+          <Button variant="primary" size="md" type="submit" className="min-h-10">
             Search
           </Button>
           {hasValue && onClear && (

@@ -105,7 +105,7 @@ export function Pagination({
                 className={cn(
                   "min-w-[28px] h-7 px-1.5 text-xs font-mono font-semibold rounded-sm transition-colors duration-150 cursor-pointer",
                   isCurrent
-                    ? "bg-cream text-ink border border-hairline-strong font-bold"
+                    ? "bg-cream text-on-cream border border-hairline-strong font-bold"
                     : "text-ink-soft hover:text-ink hover:bg-cream/30"
                 )}
               >

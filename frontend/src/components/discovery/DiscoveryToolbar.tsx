@@ -36,21 +36,21 @@ export function DiscoveryToolbar({
   onOpenPrefs,
   onRefreshComplete,
 }: DiscoveryToolbarProps) {
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
   const countLabel =
     status === "loading" && !hasResponse
       ? "Scanning..."
-      : total === 0
-      ? "0 opportunities"
+      : start > end
+      ? `${total} opportunit${total === 1 ? "y" : "ies"}`
       : `${start} to ${end} of ${total}`;
 
   const liveAnnouncement = `${total} opportunit${total === 1 ? "y" : "ies"}`;
 
   return (
-    <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-hairline pb-3">
+    <div className="mb-4 flex flex-col justify-between gap-3 border-b border-hairline pb-3 xl:flex-row xl:items-start">
       {/* Result Count and Live Region */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex min-h-9 flex-wrap items-center gap-3">
         <span className="eyebrow">CATALOG</span>
         <span className="font-mono text-xs font-semibold text-ink">
           {countLabel}
@@ -66,7 +66,7 @@ export function DiscoveryToolbar({
       </div>
 
       {/* Toolbar Actions: Sort, Mobile Filters, Preferences, Refresh */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-start gap-2">
         <SortControl
           value={sort}
           onChange={onSortChange}
@@ -76,11 +76,11 @@ export function DiscoveryToolbar({
           variant="secondary"
           size="sm"
           onClick={onToggleMobileFilters}
-          className="lg:hidden"
+          className="min-h-9 lg:hidden"
         >
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </Button>
-        <Button variant="quiet" size="sm" onClick={onOpenPrefs}>
+        <Button variant="quiet" size="sm" className="min-h-9 !text-xs" onClick={onOpenPrefs}>
           Search preferences
         </Button>
         <RefreshButton
