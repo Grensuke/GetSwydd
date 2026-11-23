@@ -21,9 +21,11 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 
 ## Current milestone
 
-The backend supports the workflow from a reviewed resume to a ranked shortlist and an assisted application draft. The natural-language discovery endpoint is `POST /api/v1/agents/job-discovery`. The live Mozilla test in Swagger returned HTTP 200 with matches using Groq. The model extracts search filters, configured employer feeds supply the listings, and GetSwydd ranks them using confirmed profile evidence.
+A candidate can confirm a resume, find a suitable job from configured Greenhouse, Lever, and Ashby feeds, and prepare a draft from either the catalog or AI search. The India-first catalog includes explicitly worldwide remote roles. Groq or OpenAI interprets the natural-language query, while the backend applies filters and ranks actual postings using confirmed facts. The [discovery contract](api-contract.md#12-job-discovery-agent) describes the search and its clarification states.
 
-The Discover page now offers **Search with AI** for ranked jobs, clarification, and links to the employer posting and detailed analysis. See the [agent API contract](api-contract.md#12-job-discovery-agent) for request and response behavior and the [README](../README.md#try-live-job-discovery-with-groq) for the local smoke test.
+The [application guide](../README.md#review-a-resume-and-prepare-an-application) covers the assisted employer-site workflow, local test inbox, Chromium demo, and approval-gated Greenhouse integration. Gmail sending is available at the API when a supported listing explicitly requests email applications. The Gmail connect, send, and tracker UI still needs wiring.
+
+The tracker provides Ledger and Board views. It distinguishes test inbox receipts, user-reported submissions, and Greenhouse outcomes. Interview, assessment, offer, rejection, and saved statuses are personal tracking notes stored in the browser. Gmail inbox monitoring remains a separate roadmap item.
 
 ## Product Roadmap
 
@@ -39,10 +41,13 @@ The Discover page now offers **Search with AI** for ranked jobs, clarification, 
 - [x] Ask for missing answers and save the completed draft for review.
 - [x] Accept explicit approval for the reviewed draft version.
 - [x] Record a submission in the local test employer inbox and show its receipt in the tracker.
+- [x] Fill a local mock employer form in Chromium for review and test submission.
 
 ### Phase 3: Resume Management & Explainable Matching
 - [x] Upload multiple text-based PDF and DOCX resumes and review extracted facts.
 - [x] Merge confirmed facts into a local profile with resume sources.
+- [x] Extract supported contact hyperlinks, review contact fields, and remove uploaded resumes.
+- [x] Search from a selected reviewed resume and require at least one recognized confirmed skill match.
 - [x] Match sample job skills against the confirmed profile and show evidence, gaps, and checks that need confirmation.
 - [x] Recommend the reviewed resume that supports the most listed skills.
 - [x] Prepare personalized draft answers from confirmed profile and resume evidence.
@@ -60,6 +65,8 @@ The Discover page now offers **Search with AI** for ranked jobs, clarification, 
 - [x] Turn natural-language search requests into a ranked shortlist using a configurable model provider.
 - [x] Verify live Groq-backed discovery in Swagger.
 - [x] Connect natural-language search and clarification to the frontend.
-- [ ] Add an authorized employer submission integration.
-- [ ] Application status Kanban dashboard.
-- [ ] Add optional Gmail tracking through OAuth.
+- [x] Submit a reviewed draft to supported Greenhouse boards with employer authorization and explicit candidate approval.
+- [x] Provide Ledger and Kanban Board tracker views with personal stages and notes.
+- [x] Add approval-gated Gmail sending to the backend for listings with supported email instructions.
+- [ ] Connect the Gmail approval flow and Gmail-specific tracker statuses to the frontend.
+- [ ] Explore Gmail inbox tracking for hiring updates with separate user permission.

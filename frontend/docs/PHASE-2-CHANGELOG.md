@@ -1,5 +1,7 @@
 # GetSwydd Frontend Phase 2 Changelog
 
+> This changelog records the original milestone. See the [current frontend guide](FRONTEND-COMPLETE-REPORT.md#current-frontend-workflows) for the workflows and API behavior in the latest branch.
+
 ## 1. Summary
 
 Phase 2 expanded GetSwydd from a static demonstration prototype into an end-to-end opportunity discovery engine and job qualification analysis suite. Across Prompt 1 and Prompt 2, the frontend gained full URL-synchronized discovery state, dual-input search, multi-source feed tabs, structured filter sidebars, an accessible mobile sheet, an editorial pagination system, and a right-side drawer for persistent search preferences. Candidates now receive real-time unread alert notifications via an accessible popover in the global header and can audit their alerts through a full editorial ledger on `/alerts`. Every job listing links directly to a deep qualification analysis view on `/jobs/[jobId]`, loading full provenance breakdown, required versus mentioned skills, profile work-authorization verification, and optional AI semantic suitability comparison. A non-intrusive deadline radar surfaces urgent upcoming deadlines closing within 14 days without unnecessary API queries. Throughout all additions, the quiet editorial aesthetic (Fraunces headings, paper/cream/sage surfaces, hairline borders, no emojis, no gradients) and the three foundational product rules (Verified Facts Only, User Approval Before Submission, and Assisted Mode Fallback) were rigorously maintained.

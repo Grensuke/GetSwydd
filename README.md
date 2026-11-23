@@ -1,9 +1,9 @@
 # GetSwydd
 
-GetSwydd is a local job search and application assistant. Upload and review resumes, find jobs on configured employer boards, compare job requirements with confirmed resume facts, and prepare an application for review.
+GetSwydd is a local job search and application assistant for roles in India and remote jobs open worldwide. Upload and review resumes, search configured employer boards, compare job requirements with confirmed resume facts, and review an application before sending it.
 
-- **Backend (`api/`)** runs on Python 3.12+, FastAPI, and SQLite. It handles resume review, the demo and live catalogs, matching, saved searches, alerts, and application drafts.
-- **Frontend (`frontend/`)** uses Next.js, TypeScript, and Tailwind CSS. The local UI includes structured and AI job search, saved preferences, alerts, resume review, assisted drafts, and an application tracker with list and Kanban views.
+- **Backend (`api/`)** runs on Python 3.12+, FastAPI, and SQLite. It handles resume review, the demo and live catalogs, matching, saved searches, alerts, application drafts, and approval-gated submission integrations.
+- **Frontend (`frontend/`)** uses Next.js, TypeScript, and Tailwind CSS. The local UI includes structured and AI job search, saved preferences, alerts, resume review, application review, and a tracker with Ledger and Board views.
 - **Product documentation** covers [project status and roadmap](docs/PROJECT.md) and the [API contract](docs/api-contract.md). The [frontend guide](frontend/README.md) links to the frontend report and release notes.
 
 ## Run locally on Windows
@@ -24,7 +24,7 @@ Open [Swagger](http://127.0.0.1:8000/docs) to try the API or [check backend heal
 
 ### Frontend
 
-In a second PowerShell terminal, start in the repository root.
+Use a supported Node.js LTS release and npm. In a second PowerShell terminal, start in the repository root.
 
 ```powershell
 Set-Location .\frontend
@@ -34,6 +34,20 @@ npm.cmd run dev -- --port 3000
 
 Open [GetSwydd](http://localhost:3000). The frontend defaults to `http://127.0.0.1:8000`. To override it, set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` using the template in `frontend/.env.example`.
 
+## Review a resume and prepare an application
+
+1. Open **Resumes** and upload a text-based PDF or DOCX up to 5 MB. Review the suggested skills, education, experience, projects, certifications, and contact details. The extractor reads supported PDF and DOCX link targets, so a linked phone number, email, LinkedIn profile, or GitHub profile can appear even when the visible text is just a label.
+2. Confirm the facts you want to use. The **Confirmed profile** groups facts by category and shows their source resumes. Select **Remove** to delete a resume and facts unique to it. Saved drafts keep their snapshots.
+3. In **Profile**, save your candidate name and optional availability. Answer work authorization questions on individual drafts when an employer asks.
+4. Use **Find jobs with this resume**, **Search with AI**, or the catalog. Open the job analysis or choose **Prepare application**. Select a reviewed resume, save any missing answers, and check the draft before continuing.
+
+| Workflow | What happens after review |
+| --- | --- |
+| Assisted application | Open the official employer form, use the prepared answers and resume, and report completion in GetSwydd when you have submitted. |
+| Authorized Greenhouse submission | **Approve and apply** sends the saved version and selected resume to a supported, opted-in Greenhouse board. It requires an employer-issued board key. |
+| Local test submission | Submit the sample draft to the test inbox, with an optional Chromium preview of the mock form. |
+| Gmail API integration | The backend can send a reviewed PDF or DOCX to the recipient explicitly named in a supported listing after OAuth and approval. Gmail controls and source-specific tracker labels are pending in the frontend. |
+
 ### Try the browser application demo
 
 Run this once from `api/` after installing `requirements.txt`.
@@ -42,7 +56,7 @@ Run this once from `api/` after installing `requirements.txt`.
 .\.venv\Scripts\python.exe -m playwright install chromium
 ```
 
-Run the backend from your desktop with the loopback host shown above and omit `--reload` for the browser demo. In Discover, select **Demo**, open **Data Analyst Internship**, and start a demo draft with the sample résumé. Select **Fill mock employer form**. Review the sample name, email, résumé, and screening answers in the Chromium window, then return to GetSwydd and select **Approve and submit test application**. The browser shows confirmation and the receipt appears in **Applications**. The demo uses one browser preview at a time.
+Run the backend from your desktop with the loopback host shown above and omit `--reload` for the browser demo. In Discover, select **Demo**, open **Data Analyst Internship**, and start a demo draft with the sample résumé. Select **Fill mock employer form**. Review the sample name, email, résumé, and screening answers in the Chromium window, then return to GetSwydd, check the approval box, and select **Approve and submit test application**. The browser shows confirmation and the receipt appears in **Applications**. The demo uses one browser preview at a time.
 
 ## Browse jobs in India
 
@@ -80,9 +94,29 @@ In [Swagger](http://127.0.0.1:8000/docs), open `POST /api/v1/agents/job-discover
 
 A successful search returns HTTP 200. The match count depends on the catalog. `total_matches` counts all matches and `jobs` contains up to two entries for this request. If the response has no results, check `refresh_sources` and the applied filters. The [agent API contract](docs/api-contract.md#12-job-discovery-agent) covers provider configuration, response states, and errors.
 
+## Verify the Gmail backend integration
+
+Use the mocked integration test from `api/`. It exercises OAuth, approval, the message and original attachment, and the tracker response without sending a real email.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_application_email.py -q
+```
+
+To check the local catalog, refresh sources in Discover and run this in PowerShell. A zero email count with live results means the available descriptions did not contain an email submission instruction recognized by the parser.
+
+```powershell
+$catalog = Invoke-RestMethod 'http://127.0.0.1:8000/api/v1/jobs?source=live'
+$emailJobs = @($catalog.jobs | Where-Object { $_.email_application_available -eq $true })
+"Live listings: $($catalog.total)"
+"Email applications available: $($emailJobs.Count)"
+$emailJobs | Select-Object title, company, location
+```
+
+For local API setup and the approval fields, see the [Gmail API contract](docs/api-contract.md#13-application-by-email-with-gmail).
+
 ## Development checks
 
 - From `api/`, run `.\.venv\Scripts\python.exe -m pytest -q`.
 - From `frontend/`, run `npm.cmd run lint` and `npm.cmd run build`.
 
-The browser demo uses a mock employer and the local test inbox. Live listings use assisted mode or direct submission when the employer has enabled the [Greenhouse integration](docs/api-contract.md#91-employer-authorized-greenhouse-submission).
+Use the [frontend QA guide](frontend/docs/FRONTEND-COMPLETE-REPORT.md#current-verification) to verify the review flow, tracker, and light and dark layouts.
