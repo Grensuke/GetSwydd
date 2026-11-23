@@ -1,5 +1,7 @@
 # GetSwydd Frontend Phase 3 Changelog
 
+> This changelog records the original milestone. See the [current frontend guide](FRONTEND-COMPLETE-REPORT.md#current-frontend-workflows) for the workflows and API behavior in the latest branch.
+
 ## 1. Summary
 
 Phase 3 completes the application workflow, unified application tracking, status management, dark mode theming, and system-wide audit of the GetSwydd frontend. Across Prompt 1 and Prompt 2, the application workflow was overhauled with an accessible resume selector that validates review status and automatically pre-selects recommended resumes for both demo and assisted listings. The application draft editor was rebuilt with modular subcomponents featuring live character counters, native dropdowns for choice questions with out-of-range detection, collapsible evidence provenance linking directly to verified resumes, and a dirty tracking system with unsaved change warnings. For assisted applications, GetSwydd provides a clear three-step preparation workflow with one-click clipboard copying and a reported submission sign-off that never implies automated submission. The unified application tracker on `/applications` delivers a two-tier status architecture separating confirmed backend facts from private, browser-local personal stages across an editorial ledger table and an accessible, keyboard-first kanban board. A comprehensive dark mode token swap introduces warm editorial surfaces with zero-flash layout hydration and full WCAG AA contrast compliance across every visual state.

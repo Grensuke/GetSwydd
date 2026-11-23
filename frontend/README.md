@@ -1,42 +1,28 @@
 # GetSwydd Frontend
 
-The GetSwydd web client built with [Next.js](https://nextjs.org/) 16 (App Router), React 19, TypeScript strict mode, and Tailwind CSS 4.
+The GetSwydd web client uses Next.js 16 App Router, React 19, TypeScript, and Tailwind CSS 4. Its main routes are Discover, Resumes, Profile, Applications, Alerts, and job and draft details.
 
-Styled with a quiet editorial stationery visual aesthetic.
+## Run locally
 
----
+Start FastAPI from a separate terminal using the [root setup guide](../README.md#backend). The frontend reads `NEXT_PUBLIC_API_URL` from `frontend/.env.local` and defaults to `http://127.0.0.1:8000`. Use the [environment template](.env.example) if you need to override it.
 
-## Getting Started
+Run these commands from the repository root.
 
-From the project root or from this directory:
-
-```bash
-# From project root:
-npm --prefix frontend run dev
-
-# Or from within frontend directory:
-npm run dev
+```powershell
+Set-Location .\frontend
+npm.cmd ci
+npm.cmd run dev -- --port 3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Open [GetSwydd](http://localhost:3000).
 
----
+## Verify changes
 
-## Verification
+From `frontend/`, run lint and the production build. The build also checks TypeScript.
 
-```bash
-npm run lint
-npx tsc --noEmit
-npm run build
+```powershell
+npm.cmd run lint
+npm.cmd run build
 ```
 
----
-
-## Documentation
-
-Full architectural and design documentation is available in `docs/`:
-- [Master Report](docs/FRONTEND-COMPLETE-REPORT.md)
-- [Phase 1 Changelog](docs/PHASE-1-CHANGELOG.md)
-- [Phase 2 Changelog](docs/PHASE-2-CHANGELOG.md)
-- [Phase 3 Changelog](docs/PHASE-3-CHANGELOG.md)
-
+For a frontend handoff, use the [current workflow and QA guide](docs/FRONTEND-COMPLETE-REPORT.md#current-frontend-workflows). For request and response details, use the [API contract](../docs/api-contract.md). [Frontend documentation](docs/README.md) links to the phase changelogs.

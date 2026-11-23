@@ -1,8 +1,52 @@
-# GetSwydd Frontend: Consolidated Architecture and Engineering Report (Phases 1–3)
+# GetSwydd Frontend Architecture and Engineering Report
 
-This document is the authoritative, self-contained engineering report for the GetSwydd frontend client. It describes the complete implementation delivered across Phase 1 (Foundation and Identity), Phase 2 (Discovery and Matching), and Phase 3 (Application Workflow, Tracking, and Dark Mode). All descriptions, component inventories, token mappings, and route contracts reflect the exact code as it exists in the repository.
+## Current frontend workflows
 
----
+The Next.js App Router frontend lives in `frontend/`. `src/app/` defines pages, `src/components/` holds the workflow UI, and `src/lib/api/` is the typed client for the local FastAPI backend. [Frontend setup](../README.md) covers startup and environment configuration. The [API contract](../../docs/api-contract.md) is the reference for endpoint behavior.
+
+| Route | Main workflow |
+| --- | --- |
+| `/` | Browse India and explicitly worldwide remote job listings, filter by structured fields, or use **Search with AI**. **All locations** broadens the catalog. |
+| `/jobs/[jobId]` | Review the posting, recognized requirements, confirmed evidence, and suggested resume. Use **Prepare application** or **Draft demo application** for eligible listings. |
+| `/resumes` | Upload or remove a PDF or DOCX, review extracted facts and contact links, and search from a selected confirmed resume. |
+| `/profile` | Save candidate name and optional availability. A personalized draft requires a name. Work authorization is handled in application-specific questions. |
+| `/applications/drafts/[draftId]` | Review the selected resume, confirm answers, save edits, and complete the workflow appropriate to the draft. |
+| `/applications` | Open Ledger or Board view and track test receipts, assisted progress, and Greenhouse outcomes. |
+| `/alerts` | Review matches detected by source refresh and mark notifications as read. |
+
+### Discovery and resume review
+
+**Search with AI** sends a plain-language request to the discovery agent. The provider extracts a search plan, then the backend searches configured employer feeds and returns actual listings, the filters it applied, and profile evidence. A result links to job analysis and the same preparation flow as a catalog result. **Find jobs with this resume** passes the selected resume ID and requires at least one matched confirmed skill. Skill coverage is separate from eligibility checks such as work authorization.
+
+In **Resumes**, check extracted text, category suggestions, and the suggested email, phone, LinkedIn, and GitHub values before confirming them. Supported embedded links can provide values missing from visible text. The confirmed profile keeps source attribution and shows category details on demand. Removing a resume updates the profile but existing draft snapshots retain the selected filename and reviewed answers.
+
+### Review and submission
+
+| Path | Review and action |
+| --- | --- |
+| Assisted employer site | Save any answers and use the employer link and prepared details. **Mark as submitted** records the user's report after the external application is complete. |
+| Authorized Greenhouse | For a supported form with an authorized board key, save required answers and select the approval checkbox. **Approve and apply** sends that version and the original reviewed resume. If delivery remains unconfirmed, check before trying another submission. |
+| Local sample draft | Approve the saved sample draft to create a local test inbox receipt. From a sample-resume draft you can also choose **Fill mock employer form**, review the separate Chromium window, and approve its test submission in GetSwydd. **Close browser** cancels the preview. |
+| Gmail | The backend can prepare and send email for supported listings. The current frontend does not expose Gmail connection or submission. Its tracker has no Gmail-specific status mapping, so verify email outcomes using the API response. |
+
+### Tracker and layouts
+
+Ledger and Board read the same two backend lists, `GET /api/v1/applications` and `GET /api/v1/applications/assisted`. The UI labels demo receipts as **Test submission**, reports from candidates as **Submitted (reported by you)**, accepted Greenhouse submissions as **Employer confirmed**, and unresolved Greenhouse sends as **Confirmation pending**. Personal stages and notes live in browser storage.
+
+The theme switch supports Auto, Light, and Dark. Shared color tokens are in `src/app/globals.css`. Check the Ledger header and rows at desktop width, the application cards and filters on narrow screens, long job titles, and the contrast of the Discover hero and action buttons.
+
+## Current verification
+
+1. Run frontend lint and production build from `frontend/`. Use the [root README](../../README.md#development-checks) for backend tests.
+2. On Discover, run a structured search and an AI search. Inspect the applied filters and source refresh details, then follow a result into job analysis and application preparation.
+3. Upload a test resume with one supported hyperlink and confirm the intended contact value. Confirm that the grouped profile uses that resume as evidence and that removing the upload removes facts unique to it.
+4. Enter a candidate name in Profile and save availability if needed. Open a draft and verify that required answers without confirmed facts remain blank.
+5. Select the Data Analyst Internship from **Demo**, choose the sample resume, and run the [Chromium mock employer walkthrough](../../README.md#try-the-browser-application-demo). Check that a test receipt appears in both tracker views.
+6. For a live job without an authorized Greenhouse integration, verify that the review provides the official employer link and assisted steps. Check the Ledger and Board in both themes and at narrow and wide viewport sizes.
+
+## Phase 1–3 engineering archive
+
+The numbered sections below preserve the original phase report. Its historical dependency counts, file limits, endpoint inventory, screenshots or test output, and roadmap reflect the Phase 3 milestone.
 
 ## 1. Executive Summary
 
@@ -17,7 +61,7 @@ All 10 application routes compile cleanly to static and partially prerendered (P
 
 ### Diagnostic Verification Output
 
-The frontend verification suite was executed against the current repository state:
+The frontend verification suite was executed against the Phase 3 snapshot:
 
 ```text
 > web@0.1.0 lint

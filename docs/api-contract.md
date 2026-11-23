@@ -1,6 +1,6 @@
 # GetSwydd API Contract
 
-This document specifies the REST API contract implemented in the FastAPI backend (`api/`) for GetSwydd, including job discovery and the application drafting flow.
+This document specifies the REST API contract implemented in the FastAPI backend (`api/`) for GetSwydd, including job discovery, resume review, drafts, and the supported submission workflows.
 
 ## Base URL & Configuration
 
@@ -31,7 +31,7 @@ Checks service availability.
 ---
 
 ### 1.2 Job Catalog
-Lists demo roles by default. Use `source=live` for configured public employer feeds or `source=all` to include both. See [live discovery](#11-unified-job-discovery-and-analysis) for refreshing the catalog.
+Lists demo roles by default. Use `source=live` for configured public employer feeds or `source=all` to include both. See [live discovery](#11-unified-job-discovery-and-analysis) for refreshing the catalog. Use `email_application_available` on live jobs to identify listings with recognized [email instructions](#13-application-by-email-with-gmail).
 
 - **Route:** `GET /api/v1/jobs`
 - **Method:** `GET`
@@ -55,8 +55,8 @@ Lists demo roles by default. Use `source=live` for configured public employer fe
     {
       "id": "job-da-002",
       "title": "Data Analyst Internship",
-      "company": "Cymru Insights",
-      "location": "Remote",
+      "company": "Cedar Insights",
+      "location": "Remote (India)",
       "eligibility": "Proficiency in SQL, Python (pandas), and data visualization with strong communication skills",
       "recommended_resume": "Data_Analytics_Resume.pdf",
       "description": "Analyze labor market trends, extract job market insights, and assist in matching algorithms.",
@@ -107,9 +107,9 @@ Initiates a draft for a target job. Pre-populates screening answers from verifie
     },
     {
       "id": "work_authorization",
-      "question": "Are you legally authorized to work in the UK for this role?",
+      "question": "Are you legally authorized to work in India for this role?",
       "required": true,
-      "answer": "Authorized to work in the UK without visa sponsorship required.",
+      "answer": "Yes, I am legally authorized to work in India.",
       "source": "verified_profile"
     },
     {
@@ -200,9 +200,9 @@ Supplies user answers for missing screening questions (or updates existing answe
     },
     {
       "id": "work_authorization",
-      "question": "Are you legally authorized to work in the UK for this role?",
+      "question": "Are you legally authorized to work in India for this role?",
       "required": true,
-      "answer": "Authorized to work in the UK without visa sponsorship required.",
+      "answer": "Yes, I am legally authorized to work in India.",
       "source": "verified_profile"
     },
     {
@@ -269,6 +269,18 @@ Repeated requests for the same draft version return the original receipt. The en
 
 `GET /api/v1/applications` returns the confirmed test receipts in newest-first order for the application tracker.
 
+### 4.1 Chromium mock employer demo
+
+Use this flow on the local API with an unsubmitted `mode: "demo"` draft that uses the sample resume and has all required answers saved. Install Chromium from the [browser demo setup](../README.md#try-the-browser-application-demo) and run a single backend process on a desktop.
+
+| Endpoint | Request and response |
+| --- | --- |
+| `POST /api/v1/applications/drafts/{draft_id}/browser-demo` | Send `{"draft_updated_at":"<saved version>"}`. Opens the prefilled mock form and returns `session_id` and `draft_updated_at`. |
+| `POST /api/v1/applications/drafts/{draft_id}/browser-demo/submit` | Send `{"approved":true,"draft_updated_at":"<preview version>","session_id":"<preview session>"}`. Returns the local test receipt after submission. |
+| `DELETE /api/v1/applications/drafts/{draft_id}/browser-demo/{session_id}` | Closes the matching browser preview and returns `204`. |
+
+A changed draft requires a fresh preview. An ineligible draft, stale version, or missing preview returns `409`. Unavailable Chromium returns `503` during preview. Explicit approval is required for submission. The browser opens only the mock form and the receipt uses the same test inbox as the standard demo.
+
 ## 5. Resumes and Confirmed Profile
 
 | Endpoint | Request and response |
@@ -297,9 +309,9 @@ The review payload uses five groups of strings. Omit a group or send an empty ar
 
 Suggestions come from text under common resume section headings. Reviewers can correct or remove any suggestion before confirming it. The profile merges equal facts within each category without regard to case or repeated spaces and retains every confirmed source. Files and profile data are stored locally in SQLite. The sample application workflow continues to use its synthetic candidate.
 
-Resume detail also returns `suggested_contact` and `confirmed_contact` for email, phone, LinkedIn, and GitHub. Suggestions use visible contact text and supported PDF or DOCX hyperlink targets. An existing upload is reprocessed when reopened. Previously confirmed facts remain available for review alongside the new suggestions. Sending `contact` confirms the supplied fields for that resume. Send null values inside the object to clear fields or omit the object to preserve previously confirmed contact details.
+Resume detail also returns `suggested_contact` and `confirmed_contact` for email, phone, LinkedIn, and GitHub. Suggestions use visible contact text and supported PDF or DOCX hyperlink targets. Legacy uploads without stored contact suggestions are reprocessed when reopened. Previously confirmed facts remain available for review alongside the new suggestions. Sending `contact` confirms the supplied fields for that resume. Send null values inside the object to clear fields or omit the object to preserve previously confirmed contact details.
 
-New drafts copy confirmed contact details from the selected resume and prefill supported contact questions when a text field is available. The assisted application packet offers those details for copying into the official form. Existing drafts retain their snapshots after the original upload is removed. A fact confirmed on another resume stays in the profile.
+New drafts copy confirmed contact details from the selected resume and prefill supported contact questions when a text field is available. The assisted application packet offers those details for copying into the official form. Existing drafts retain their snapshots after the original upload is removed. The original file is still required for a new Greenhouse or Gmail send. A fact confirmed on another resume stays in the profile.
 
 ## 6. Explainable Job Matching
 
@@ -428,11 +440,11 @@ Use `GET /api/v1/applications/assisted` to list the real drafts in the tracker. 
 }
 ```
 
-Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, and a null submission time. Repeating a report returns the same timestamp, and reported drafts become read-only. The original test inbox endpoint accepts demo drafts.
+An assisted draft without a submission has `status: "draft"`, `status_source: "getswydd"`, and a null submission time. Repeating a report returns the same timestamp, and reported drafts become read-only. Integration outcomes use `status_source: "greenhouse"` or `status_source: "gmail"`. An accepted integration request uses `status: "submitted"`. A send in flight or with unconfirmed receipt uses `status: "unconfirmed"`. The original test inbox endpoint accepts demo drafts.
 
 ### 9.1 Employer-authorized Greenhouse submission
 
-Both AI Search and the job catalog open the same application draft. On the local GetSwydd API, set `GETSWYDD_GREENHOUSE_SUBMISSION_KEYS` to a JSON map of opted-in board tokens to employer-issued Job Board API keys. The board must also be present in `GETSWYDD_GREENHOUSE_BOARDS`. Keep the keys in the API's environment and bind this single-user API to loopback. See the [Greenhouse Job Board API](https://docs.greenhouse.io/job-board#submit-an-application).
+AI search results and the job catalog lead to the same application draft workflow. On the local GetSwydd API, set `GETSWYDD_GREENHOUSE_SUBMISSION_KEYS` to a JSON map of opted-in board tokens to employer-issued Job Board API keys. The board must also be present in `GETSWYDD_GREENHOUSE_BOARDS`. Keep the keys in the API's environment and bind this single-user API to loopback. See the [Greenhouse Job Board API](https://docs.greenhouse.io/job-board#submit-an-application).
 
 Create a fresh draft after enabling the board. Supported forms have `greenhouse_form_hash` set and show the contact fields alongside the screening questions. Review those answers and the selected PDF or DOCX. Forms with unsupported required fields, location, or compliance questions use the employer form.
 
@@ -573,3 +585,38 @@ Display the returned `detail` message when it is text. FastAPI validation failur
 | `504` | The model provider request timed out. |
 
 If the model provider is unavailable, the UI can still offer structured filters through `GET /api/v1/jobs?source=live` and use the draft endpoints.
+
+
+## 13. Application by Email with Gmail
+
+This integration is available in the backend. The current frontend has no Gmail connection, approval, or source-specific tracker controls. Use the mocked integration test to verify the backend locally.
+
+A live job has `email_application_available: true` when the cached official listing has an application URL and exactly one supported standalone email instruction. Examples include `Email your résumé to hiring@example.test.` and `Apply by email: hiring@example.test`. A general contact address does not qualify. On an eligible assisted draft with a reviewed PDF or DOCX, `application_email` includes `recipient`, the listing's `instruction`, `subject`, and `body`. Review the message, the draft's `selected_resume`, and the sender before approving.
+
+### Local configuration
+
+Enable Gmail API in a Google Cloud project. Configure a Web application OAuth client and register the following exact redirect URI. When the consent screen is in testing mode with an External audience, add the account as a test user.
+
+```text
+http://127.0.0.1:8000/api/v1/gmail/callback
+```
+
+Set `GETSWYDD_GOOGLE_OAUTH_CLIENT_ID` and `GETSWYDD_GOOGLE_OAUTH_CLIENT_SECRET` in `api/.env` and restart the loopback API. For Gmail testing, run Uvicorn with `--no-access-log` to keep the OAuth callback query out of access logs.
+
+The API uses OAuth with PKCE and requests `openid`, `email`, and `gmail.send`. The connection is held in process memory and ends on expiry, disconnect, or restart. Inbox access and email passwords are outside this integration.
+
+### Endpoints and outcomes
+
+| Endpoint | Request and response |
+| --- | --- |
+| `GET /api/v1/gmail` | Returns `configured` and the connected `email` or `null`. Configuration and account connection are separate. |
+| `POST /api/v1/applications/drafts/{draft_id}/gmail-authorization` | Returns an `authorization_url` for an eligible draft. An unavailable preview returns `404`. Missing provider configuration returns `503`. |
+| `GET /api/v1/gmail/callback` | Google returns the OAuth state and code. The API validates them and redirects to the draft with the connection result. |
+| `DELETE /api/v1/gmail` | Clears the local account session and returns `204`. |
+| `POST /api/v1/applications/drafts/{draft_id}/email-submission` | Send `{"approved":true,"draft_updated_at":"<reviewed version>","sender":"<connected email>"}`. Returns the updated draft. |
+
+The send endpoint checks the saved draft version, sender, current listing and deadline, email preview, and original reviewed attachment. A stale review, changed listing, missing reviewed resume, or duplicate application can return `409`. Missing approval returns `422`. A definitive Gmail rejection returns `502`.
+
+When Gmail accepts the message, the draft records `employer_submission_status: "submitted"`, `employer_submission_source: "gmail"`, and the Gmail message ID in `employer_receipt_id`. The tracker API uses `status_source: "gmail"`. This confirms that Gmail accepted the send. Employer receipt and hiring status require separate confirmation. When receipt is uncertain, the API blocks a second send for the same job. Check Gmail Sent before attempting a manual submission.
+
+Run `python -m pytest tests/test_application_email.py -q` from `api/` inside the project virtual environment to verify approval, the exact attachment, and duplicate prevention with mocked Gmail.

@@ -1,5 +1,7 @@
 # GetSwydd Frontend — Phase 1 Changelog
 
+> This changelog records the original milestone. See the [current frontend guide](FRONTEND-COMPLETE-REPORT.md#current-frontend-workflows) for the workflows and API behavior in the latest branch.
+
 ## 1. Summary
 Phase 1 established the foundation for the GetSwydd candidate application assistant frontend. We built a bespoke design system rooted in a "quiet editorial" aesthetic reminiscent of printed journals and stationery, replacing generic purple/indigo SaaS styles with warm cream, sage grey, paper surfaces, and Fraunces typography. A global application shell was introduced with persistent accessible navigation, active-state routing indicators, an accessible mobile sheet, and a skip-to-content mechanism. We implemented a fully typed API layer covering all 24 backend endpoints, complete with structured error handling for FastAPI and Pydantic validation arrays. The four existing routes—Discover (`/`), Resumes (`/resumes`), Applications (`/applications`), and Draft Editor (`/applications/drafts/[draftId]`)—were redesigned into clean, accessible editorial layouts. Finally, we built the new Candidate Profile editor (`/profile`), allowing users to record and verify persistent particulars including their official name, availability, and UK right-to-work declarations.
 
