@@ -1,117 +1,67 @@
 # GetSwydd
 
-GetSwydd is a full-stack job search and application assistant designed for candidates seeking high-signal career opportunities with responsible, explainable preparation and approved submissions.
+GetSwydd is a local job search and application assistant. Upload and review resumes, find jobs on configured employer boards, compare job requirements with confirmed resume facts, and prepare an application for review.
 
----
+- **Backend (`api/`)** runs on Python 3.12+, FastAPI, and SQLite. It handles resume review, the demo and live catalogs, matching, saved searches, alerts, and application drafts.
+- **Frontend (`web/`)** uses Next.js, TypeScript, and Tailwind CSS. The local UI exposes jobs, resume review, application drafts, and tracking. The natural-language discovery endpoint is available in Swagger for frontend integration.
+- **Product documentation** covers [project status and roadmap](docs/PROJECT.md) and the [API contract](docs/api-contract.md).
 
-## Architecture Overview
+## Run locally on Windows
 
-- **`api/`**: Python 3.12+ backend powered by [FastAPI](https://fastapi.tiangolo.com/) and [Pydantic](https://docs.pydantic.dev/). Provides health checks and validated synthetic job listings with CORS configured for `http://localhost:3000`.
-- **`web/`**: Modern frontend built with [Next.js](https://nextjs.org/) (App Router), TypeScript, Tailwind CSS, and npm. Features loading skeletons, empty state fallback, error diagnosis, and rich job opportunity cards.
-- **`docs/`**: Product roadmap, core rules, and API specifications.
-  - [docs/PROJECT.md](file:///c:/Users/STARK/Documents/GetSwydd/docs/PROJECT.md): Product vision, roadmap, and foundational rules.
-  - [docs/api-contract.md](file:///c:/Users/STARK/Documents/GetSwydd/docs/api-contract.md): Endpoint contract and next-milestone specification.
+### Backend
 
----
+In PowerShell, start in the repository root. The copy command creates a local configuration file on first run and preserves an existing one.
 
-## Core Product Rules
+```powershell
+Set-Location .\api
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --env-file .env --reload
+```
 
-1. **Use Verified Facts for Application Answers**: Qualifications and claims are anchored exclusively in verified user profiles. The assistant never invents or exaggerates credentials.
-2. **Require User Approval Before Submission**: Submissions are never dispatched automatically. The candidate must explicitly review and confirm all answers and attachments.
-3. **Use Assisted Mode When Automation is Unsupported**: When direct employer/portal APIs are unavailable, GetSwydd provides guided packets and pre-fills rather than brittle, unauthorized scrapers.
+Open [Swagger](http://127.0.0.1:8000/docs) to try the API or [check backend health](http://127.0.0.1:8000/health). Demo jobs, resume review, local matching, and draft preparation are available without a model key.
 
----
+### Frontend
 
-## Quickstart (Windows PowerShell)
+In a second PowerShell terminal, start in the repository root.
 
-Follow these exact commands to install dependencies and run both servers locally in separate PowerShell terminals.
+```powershell
+Set-Location .\web
+npm ci
+npm run dev
+```
 
-### Terminal 1: Backend (FastAPI)
+Open [GetSwydd](http://localhost:3000). The frontend defaults to `http://127.0.0.1:8000`. To override it, set `NEXT_PUBLIC_API_URL` in `web/.env.local` using the template in `web/.env.example`.
 
-1. Open PowerShell and navigate to the project repository:
-   ```powershell
-   cd c:\Users\STARK\Documents\GetSwydd\api
-   ```
+## Try live job discovery with Groq
 
-2. Create and activate a Python virtual environment:
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ```
+Create a key in the [Groq Console](https://console.groq.com/keys). Add or update these entries in `api/.env`, then restart the backend. Use `api/.env.example` as the template and keep real keys in `api/.env`.
 
-3. Install backend dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
+```dotenv
+GETSWYDD_DISCOVERY_PROVIDER=groq
+GETSWYDD_DISCOVERY_MODEL=openai/gpt-oss-20b
+GROQ_API_KEY=replace_with_your_key
+GETSWYDD_GREENHOUSE_BOARDS='{"mozilla":"Mozilla"}'
+```
 
-4. Run tests:
-   ```powershell
-   pytest -v
-   ```
+The Mozilla board is an example. Keep or add authorized boards using the Greenhouse, Lever, and Ashby maps in the [API contract](docs/api-contract.md#11-unified-job-discovery-and-analysis). The agent needs a configured board with available listings to return results.
 
-5. Start the FastAPI development server:
-   ```powershell
-   uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-   ```
+In [Swagger](http://127.0.0.1:8000/docs), open `POST /api/v1/agents/job-discovery`, select **Try it out**, and send this request.
 
-   - API Health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-   - Interactive Docs (Swagger): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-   - Jobs Endpoint: [http://127.0.0.1:8000/api/v1/jobs](http://127.0.0.1:8000/api/v1/jobs)
+```json
+{
+  "message": "Ignore my saved preferences and find two jobs at Mozilla.",
+  "limit": 2,
+  "refresh": true
+}
+```
 
----
+The live Groq smoke test returned HTTP 200 with `status: "results"`. The match count depends on the catalog. `total_matches` counts all matches and `jobs` contains up to two entries for this request. If the response has no results, check `refresh_sources` and the applied filters. The [agent API contract](docs/api-contract.md#12-job-discovery-agent) covers OpenAI configuration, response states, and error handling.
 
-### Terminal 2: Frontend (Next.js)
+## Development checks
 
-1. Open a second PowerShell terminal and navigate to the web directory:
-   ```powershell
-   cd c:\Users\STARK\Documents\GetSwydd\web
-   ```
+- From `api/`, run `.\.venv\Scripts\python.exe -m pytest -q`.
+- From `web/`, run `npm run lint` and `npm run build`.
 
-2. (Optional) Set up environment variables if modifying the API target:
-   ```powershell
-   Copy-Item .env.example .env.local
-   ```
-
-3. Install frontend dependencies:
-   ```powershell
-   npm install
-   ```
-
-4. Run frontend verification:
-   ```powershell
-   npm run lint
-   npm run build
-   ```
-
-5. Start the Next.js development server:
-   ```powershell
-   npm run dev
-   ```
-
-6. Open your browser:
-   - Web Application: [http://localhost:3000](http://localhost:3000)
-
----
-
-## Environment Configuration
-
-- **API (`api/.env.example`)**:
-  ```env
-  HOST=127.0.0.1
-  PORT=8000
-  FRONTEND_ORIGIN=http://localhost:3000
-  ```
-
-- **Frontend (`web/.env.example`)**:
-  ```env
-  NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-  ```
-
----
-
-## Next Milestone
-
-In Milestone 2, candidates will be able to:
-- Select a job from the listing to draft an application package.
-- Identify missing questions and supply verified answers.
-- Inspect the tailored draft before explicit submission to a local mock employer endpoint.
+Real employer applications use assisted mode. GetSwydd prepares the materials, and the candidate completes the employer's form. The approval and submission test flow writes to a local test inbox.
