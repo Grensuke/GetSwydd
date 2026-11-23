@@ -2,7 +2,9 @@ from pathlib import PurePosixPath
 
 from fastapi import APIRouter, HTTPException, Response, UploadFile
 
-from app.resume_models import ApplicationDetails, ConfirmedProfile, ResumeDetail, ResumeReview, ResumeSummary
+from app.resume_models import (
+    ApplicationDetails, ConfirmedProfile, GeneralApplicationDetails, ResumeDetail, ResumeReview, ResumeSummary,
+)
 from app.resume_parser import MAX_FILE_BYTES, ResumeParseError, parse_resume
 from app.resume_store import (
     StaleResumeReview,
@@ -78,3 +80,8 @@ def application_details() -> ApplicationDetails:
 @router.put("/profile/application-details", response_model=ApplicationDetails)
 def confirm_application_details(details: ApplicationDetails) -> ApplicationDetails:
     return save_application_details(details)
+
+
+@router.patch("/profile/application-details", response_model=ApplicationDetails)
+def update_general_application_details(details: GeneralApplicationDetails) -> ApplicationDetails:
+    return save_application_details(details, partial=True)

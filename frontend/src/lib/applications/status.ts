@@ -6,7 +6,7 @@ import type { BadgeTone } from "@/components/ui/badge";
  * Tier 2: Personal (manual client-side tracking, never verified by GetSwydd).
  */
 
-export type ConfirmedStage = "preparing" | "submitted_reported" | "test_submitted";
+export type ConfirmedStage = "preparing" | "submitted_reported" | "submitted_direct" | "submission_pending" | "test_submitted";
 
 export interface ConfirmedStageInfo {
   stage: ConfirmedStage;
@@ -30,6 +30,20 @@ export const CONFIRMED_STAGE_MAP: Record<ConfirmedStage, ConfirmedStageInfo> = {
     sourceTag: "Reported by you",
     tone: "verified",
     description: "You reported completing the application on the employer's website.",
+  },
+  submitted_direct: {
+    stage: "submitted_direct",
+    label: "Employer confirmed",
+    sourceTag: "Accepted by Greenhouse",
+    tone: "verified",
+    description: "Greenhouse accepted the employer application.",
+  },
+  submission_pending: {
+    stage: "submission_pending",
+    label: "Confirmation pending",
+    sourceTag: "Awaiting confirmation from Greenhouse",
+    tone: "attention",
+    description: "GetSwydd has yet to confirm receipt from Greenhouse.",
   },
   test_submitted: {
     stage: "test_submitted",

@@ -32,7 +32,6 @@ export type MergedProfile = ConfirmedProfile;
 export interface ApplicationDetails {
   candidate_name?: string | null;
   availability?: string | null;
-  uk_work_authorization?: "authorized" | "not_authorized" | null;
 }
 
 export interface ResumeFacts {

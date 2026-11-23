@@ -77,6 +77,7 @@ class Job(BaseModel):
     match: JobMatch | None = None
     source: JobSource = "demo"
     application_mode: Literal["demo", "assisted"] = "demo"
+    email_application_available: bool = False
     apply_url: str | None = None
     source_updated_at: str | None = None
     source_fetched_at: str | None = None
@@ -187,6 +188,13 @@ class SubmissionReceipt(BaseModel):
     status: Literal["submitted"] = "submitted"
 
 
+class ApplicationEmail(BaseModel):
+    recipient: str
+    instruction: str
+    subject: str
+    body: str
+
+
 class ApplicationDraft(BaseModel):
     """Model representing an application draft in progress or ready for review."""
     id: str = Field(..., description="Unique draft identifier")
@@ -201,6 +209,12 @@ class ApplicationDraft(BaseModel):
     apply_url: str | None = None
     form_status: Literal["loaded", "partial", "unavailable"] | None = None
     reported_submitted_at: str | None = None
+    greenhouse_form_hash: str | None = None
+    application_email: ApplicationEmail | None = None
+    employer_submission_status: Literal["sending", "uncertain", "submitted"] | None = None
+    employer_submission_source: Literal["greenhouse", "gmail"] | None = None
+    employer_receipt_id: str | None = None
+    employer_submitted_at: str | None = None
     screening_questions: List[ScreeningQuestionAnswer] = Field(..., description="List of screening questions and answers")
     missing_required_questions: List[str] = Field(..., description="Question IDs that require user answers")
     ready_for_review: bool = Field(..., description="True if all required questions have answers")
@@ -216,7 +230,8 @@ class AssistedApplication(BaseModel):
     company: str
     selected_resume: str
     apply_url: str
-    status: Literal["draft", "submitted"]
-    status_source: Literal["getswydd", "user_reported"]
+    status: Literal["draft", "submitted", "unconfirmed"]
+    status_source: Literal["getswydd", "user_reported", "greenhouse", "gmail"]
     reported_submitted_at: str | None
+    employer_submitted_at: str | None = None
     updated_at: str

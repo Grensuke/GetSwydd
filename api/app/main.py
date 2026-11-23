@@ -2,16 +2,23 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager, suppress
+from datetime import date
+from pathlib import Path
 from typing import List, Literal
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
+from app.application_email import application_email_for
+from app.browser_demo import BrowserDemoUnavailable, BrowserDemoWorker
 from app.discovery_routes import router as discovery_router
 from app.db import (
     DraftConflict,
+    claim_employer_submission,
     deliver_to_test_employer,
     edit_draft,
+    finish_employer_submission,
     get_draft,
     get_job_preferences,
     init_db,
@@ -21,12 +28,21 @@ from app.db import (
     save_draft,
     save_job_preferences,
 )
+from app.employer_submission import (
+    enable_direct_submission,
+    form_hash,
+    greenhouse_api_key,
+    post_greenhouse_application,
+    submission_fields,
+)
+from app.gmail_sender import GmailSession, GmailUnavailable, RESUME_SUBTYPES, client_config, send_application
 from app.greenhouse import (
     BoardConfigError,
     BoardRefresh,
     PostingClosed,
     configured_boards,
     fetch_assisted_form,
+    fetch_greenhouse_form,
     find_imported_job,
 )
 from app.job_alerts import RefreshBusy, list_alerts, read_alert, refresh_catalog, scheduled_refresh
@@ -66,9 +82,12 @@ async def lifespan(app: FastAPI):
     if interval != 0 and not 5 <= interval <= 1440:
         raise ValueError("Set GETSWYDD_SEARCH_INTERVAL_MINUTES to 0 or a value from 5 to 1440.")
     worker = asyncio.create_task(scheduled_refresh(interval)) if interval else None
+    app.state.browser_demo = BrowserDemoWorker()
+    app.state.gmail = GmailSession()
     try:
         yield
     finally:
+        await asyncio.to_thread(app.state.browser_demo.shutdown)
         if worker:
             worker.cancel()
             with suppress(asyncio.CancelledError):
@@ -104,7 +123,7 @@ SYNTHETIC_JOBS: List[Job] = [
         id="job-py-001",
         title="Python Developer Internship",
         company="Aether Labs",
-        location="Cardiff, UK (Hybrid)",
+        location="Bengaluru, India (Hybrid)",
         eligibility="Students or recent grads proficient in Python 3, FastAPI or Flask, and basic Git workflow",
         recommended_resume="Backend_Python_Intern_Resume.pdf",
         description="Build scalable API microservices and automated job ingestion pipelines with Python and FastAPI.",
@@ -113,8 +132,8 @@ SYNTHETIC_JOBS: List[Job] = [
     Job(
         id="job-da-002",
         title="Data Analyst Internship",
-        company="Cymru Insights",
-        location="Remote",
+        company="Cedar Insights",
+        location="Remote (India)",
         eligibility="Proficiency in SQL, Python (pandas), and data visualization with strong communication skills",
         recommended_resume="Data_Analytics_Resume.pdf",
         description="Analyze labor market trends, extract job market insights, and assist in matching algorithms.",
@@ -297,6 +316,10 @@ def create_draft(payload: DraftCreateRequest) -> ApplicationDraft:
         assisted_questions=form.questions if form else None,
         form_status=form.status if form else "unavailable" if assisted else None,
     )
+    if assisted and form:
+        enable_direct_submission(draft, form)
+    if assisted and Path(draft.selected_resume).suffix.lower() in RESUME_SUBTYPES:
+        draft.application_email = application_email_for(job, draft)
     try:
         save_draft(draft)
     except DraftConflict as error:
@@ -374,6 +397,222 @@ def submit_draft(draft_id: str, payload: SubmitDraftRequest) -> SubmissionReceip
             detail=f"Application draft not found with ID '{draft_id}'",
         )
     return receipt
+
+
+@app.post(
+    "/api/v1/applications/drafts/{draft_id}/employer-submission",
+    response_model=ApplicationDraft,
+    tags=["Applications"],
+)
+def submit_to_employer(draft_id: str, payload: SubmitDraftRequest, request: Request) -> ApplicationDraft:
+    """Send the exact saved and explicitly approved draft to an authorized board."""
+    require_local_application(request)
+    if not payload.approved:
+        raise HTTPException(status_code=422, detail="Explicit approval is required.")
+
+    draft = get_draft(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Application draft not found.")
+    if draft.employer_submission_status:
+        return draft
+    if draft.updated_at != payload.draft_updated_at:
+        raise HTTPException(status_code=409, detail="This draft changed. Reload it and review it again.")
+    key = greenhouse_api_key(draft.job_id)
+    if draft.mode != "assisted" or not draft.greenhouse_form_hash or not key:
+        raise HTTPException(status_code=409, detail="Complete this application on the employer's site.")
+    if not draft.ready_for_review or draft.reported_submitted_at:
+        raise HTTPException(status_code=409, detail="The draft must be complete and awaiting submission.")
+
+    try:
+        form = fetch_greenhouse_form(draft.job_id)
+    except PostingClosed as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if form is None:
+        raise HTTPException(status_code=502, detail="Could not verify the employer's current form.")
+    if form_hash(form) != draft.greenhouse_form_hash:
+        raise HTTPException(status_code=409, detail="The employer's form changed. Prepare and review a new draft.")
+
+    try:
+        fields = submission_fields(draft, form)
+        original = claim_employer_submission(draft_id, draft.updated_at)
+    except DraftConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    outcome = post_greenhouse_application(draft.job_id, key, fields, draft.selected_resume, original)
+    updated = finish_employer_submission(draft_id, outcome)
+    if outcome == "rejected":
+        raise HTTPException(status_code=502, detail="The employer rejected this submission. Reload the draft before retrying.")
+    return updated
+
+
+def require_local_application(request: Request) -> None:
+    if (
+        request.client is None or request.client.host not in {"127.0.0.1", "::1"}
+        or request.url.hostname not in {"localhost", "127.0.0.1", "::1"}
+        or request.headers.get("origin") not in (None, *origins)
+    ):
+        raise HTTPException(status_code=403, detail="This action is available on the local GetSwydd API.")
+
+
+class GmailConnection(BaseModel):
+    configured: bool
+    email: str | None
+
+
+class GmailAuthorization(BaseModel):
+    authorization_url: str
+
+
+class EmailApproval(SubmitDraftRequest):
+    sender: str = Field(min_length=3, max_length=254)
+
+
+@app.get("/api/v1/gmail", response_model=GmailConnection, tags=["Applications"])
+def gmail_connection(request: Request) -> GmailConnection:
+    require_local_application(request)
+    account = request.app.state.gmail.account()
+    return GmailConnection(configured=client_config() is not None, email=account.email if account else None)
+
+
+@app.post(
+    "/api/v1/applications/drafts/{draft_id}/gmail-authorization",
+    response_model=GmailAuthorization,
+    tags=["Applications"],
+)
+def connect_gmail(draft_id: str, request: Request) -> GmailAuthorization:
+    require_local_application(request)
+    draft = get_draft(draft_id)
+    if not draft or not draft.application_email:
+        raise HTTPException(status_code=404, detail="No email application is available on this draft.")
+    origin = request.headers.get("origin") or origins[0]
+    try:
+        url = request.app.state.gmail.begin(f"{origin}/applications/drafts/{draft.id}")
+    except GmailUnavailable as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return GmailAuthorization(authorization_url=url)
+
+
+@app.get("/api/v1/gmail/callback", include_in_schema=False)
+def gmail_callback(request: Request, state: str, code: str | None = None) -> RedirectResponse:
+    require_local_application(request)
+    try:
+        return_url, connected = request.app.state.gmail.complete(state, code)
+    except GmailUnavailable as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    result = "connected" if connected else "error"
+    return RedirectResponse(
+        f"{return_url}?gmail={result}", status_code=303,
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
+
+
+@app.delete("/api/v1/gmail", status_code=204, tags=["Applications"])
+def disconnect_gmail(request: Request) -> None:
+    require_local_application(request)
+    request.app.state.gmail.disconnect()
+
+
+@app.post(
+    "/api/v1/applications/drafts/{draft_id}/email-submission",
+    response_model=ApplicationDraft,
+    tags=["Applications"],
+)
+def submit_by_email(draft_id: str, payload: EmailApproval, request: Request) -> ApplicationDraft:
+    require_local_application(request)
+    if not payload.approved:
+        raise HTTPException(status_code=422, detail="Explicit approval is required.")
+    draft = get_draft(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Application draft not found.")
+    if draft.employer_submission_status:
+        return draft
+    if draft.updated_at != payload.draft_updated_at:
+        raise HTTPException(status_code=409, detail="This draft changed. Reload it and review it again.")
+    if draft.mode != "assisted" or not draft.application_email or draft.reported_submitted_at:
+        raise HTTPException(status_code=409, detail="This draft has no email application available.")
+    account = request.app.state.gmail.account()
+    if account is None or account.email != payload.sender:
+        raise HTTPException(status_code=409, detail="Connect Gmail and review the sender before approving.")
+    job = _lookup_job(draft.job_id)
+    if (
+        job is None or job.apply_url != draft.apply_url
+        or (job.application_deadline and job.application_deadline < date.today().isoformat())
+        or application_email_for(job, draft) != draft.application_email
+    ):
+        raise HTTPException(status_code=409, detail="The listing has changed or closed. Check the current posting.")
+    try:
+        original = claim_employer_submission(draft.id, draft.updated_at, source="gmail")
+    except DraftConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    outcome, receipt_id = send_application(account, draft.application_email, draft.selected_resume, original)
+    updated = finish_employer_submission(draft.id, outcome, receipt_id)
+    if outcome == "rejected":
+        raise HTTPException(
+            status_code=502, detail="Gmail rejected the message. Check the Gmail connection and reload the draft.",
+        )
+    return updated
+
+
+class BrowserDemoPrepare(BaseModel):
+    draft_updated_at: str = Field(min_length=1)
+
+
+class BrowserDemoPreview(BaseModel):
+    session_id: str
+    draft_updated_at: str
+
+
+class BrowserDemoApproval(SubmitDraftRequest):
+    session_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+
+
+@app.post(
+    "/api/v1/applications/drafts/{draft_id}/browser-demo",
+    response_model=BrowserDemoPreview,
+    tags=["Applications"],
+)
+def prepare_browser_demo(draft_id: str, payload: BrowserDemoPrepare, request: Request) -> BrowserDemoPreview:
+    require_local_application(request)
+    draft = get_draft(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Application draft not found.")
+    if draft.mode != "demo" or draft.resume_id is not None:
+        raise HTTPException(status_code=409, detail="Choose a demo job and keep the sample resume to open the mock employer.")
+    if draft.submission or not draft.ready_for_review:
+        raise HTTPException(status_code=409, detail="Open an unsubmitted demo draft with all required answers saved.")
+    if draft.updated_at != payload.draft_updated_at:
+        raise HTTPException(status_code=409, detail="This draft changed. Reload it and review the saved answers again.")
+    try:
+        session_id = request.app.state.browser_demo.prepare(draft)
+    except BrowserDemoUnavailable as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return BrowserDemoPreview(session_id=session_id, draft_updated_at=draft.updated_at)
+
+
+@app.post(
+    "/api/v1/applications/drafts/{draft_id}/browser-demo/submit",
+    response_model=SubmissionReceipt,
+    tags=["Applications"],
+)
+def submit_browser_demo(draft_id: str, payload: BrowserDemoApproval, request: Request) -> SubmissionReceipt:
+    require_local_application(request)
+    if not payload.approved:
+        raise HTTPException(status_code=422, detail="Explicit approval is required.")
+    try:
+        receipt = request.app.state.browser_demo.deliver(draft_id, payload.draft_updated_at, payload.session_id)
+    except DraftConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="Application draft not found.")
+    return receipt
+
+
+@app.delete("/api/v1/applications/drafts/{draft_id}/browser-demo/{session_id}", status_code=204, tags=["Applications"])
+def cancel_browser_demo(draft_id: str, session_id: str, request: Request) -> None:
+    require_local_application(request)
+    request.app.state.browser_demo.cancel(draft_id, session_id)
 
 
 @app.get("/api/v1/applications", response_model=list[SubmissionReceipt], tags=["Applications"])

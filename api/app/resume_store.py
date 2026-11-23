@@ -9,6 +9,7 @@ from app.db import get_db_path
 from app.resume_models import (
     ApplicationDetails,
     ConfirmedProfile,
+    GeneralApplicationDetails,
     ProfileFact,
     ProfileSource,
     ResumeContact,
@@ -149,13 +150,16 @@ def get_application_details() -> ApplicationDetails:
     return ApplicationDetails.model_validate_json(row["data_json"]) if row else ApplicationDetails()
 
 
-def save_application_details(details: ApplicationDetails) -> ApplicationDetails:
+def save_application_details(details: GeneralApplicationDetails, *, partial: bool = False) -> ApplicationDetails:
     with closing(_connect()) as conn, conn:
-        conn.execute(
+        row = conn.execute(
             """
             INSERT INTO application_details (id, data_json) VALUES (1, ?)
-            ON CONFLICT(id) DO UPDATE SET data_json = excluded.data_json
+            ON CONFLICT(id) DO UPDATE SET data_json =
+                CASE WHEN ? THEN json_patch(application_details.data_json, excluded.data_json)
+                ELSE excluded.data_json END
+            RETURNING data_json
             """,
-            (details.model_dump_json(),),
-        )
-    return details
+            (details.model_dump_json(exclude_unset=partial), partial),
+        ).fetchone()
+    return ApplicationDetails.model_validate_json(row["data_json"])

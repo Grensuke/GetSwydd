@@ -20,7 +20,7 @@ export function FormStatusNotice({ draft }: FormStatusNoticeProps) {
   if (draft.form_status === "loaded") {
     return (
       <InlineNotice variant="info">
-        <span className="font-medium">{info.label}:</span> {info.description} All screening answers have been anchored in verified facts from your selected resume.
+        <span className="font-medium">{info.label}.</span> Review the saved answers and complete any missing fields.
       </InlineNotice>
     );
   }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useId, useState, type FormEvent } from "react";
 import { ArrowRight, ArrowUpRight, ChevronDown, MapPin, Sparkles } from "lucide-react";
 import { JobMatchSummary } from "@/components/jobs/JobMatchSummary";
+import { StartApplication } from "@/components/applications/StartApplication";
 import { Badge, Button, Field, InlineNotice, Textarea } from "@/components/ui";
 import { discoverJobs, type DiscoveryJob, type JobDiscoveryResult, type ProfileSource } from "@/lib/api";
 import { formatDeadline, titleCaseEnum } from "@/lib/format";
@@ -214,7 +215,12 @@ function AgentJobCard({ job }: { job: DiscoveryJob }) {
         </details>
       )}
       <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-hairline pt-3">
-        <Button href={analysisUrl} variant="secondary" size="sm" className="min-h-9">View analysis</Button>
+        <StartApplication
+          job={{ ...job, id: job.job_id, application_mode: "assisted" }}
+          triggerVariant="primary"
+          className="min-h-9"
+        />
+        <Button href={analysisUrl} variant="quiet" size="sm" className="min-h-9 !text-xs">View analysis</Button>
         <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-ink hover:underline">
           Employer posting <ArrowUpRight size={13} aria-hidden="true" />
         </a>

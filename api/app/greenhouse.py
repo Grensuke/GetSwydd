@@ -189,6 +189,7 @@ def find_imported_job(job_id: str, boards: dict[str, str]) -> Job | None:
 
 class FormChoice(BaseModel):
     label: str
+    value: int | None = None
 
 
 class FormField(BaseModel):
@@ -206,19 +207,24 @@ class FormQuestion(BaseModel):
 class GreenhouseForm(BaseModel):
     id: int
     questions: list[FormQuestion]
+    location_questions: object | None = None
+    compliance: object | None = None
+    demographic_questions: object | None = None
+    data_compliance: object | None = None
 
 
 class AssistedForm(BaseModel):
     status: Literal["loaded", "partial", "unavailable"]
     questions: list[ScreeningQuestionAnswer] = Field(default_factory=list)
+    greenhouse_form: GreenhouseForm | None = None
 
 
 class PostingClosed(ValueError):
     """The job provider no longer lists the selected job."""
 
 
-def fetch_assisted_form(job: Job) -> AssistedForm:
-    _, token, posting_id = job.id.split(":")
+def fetch_greenhouse_form(job_id: str) -> GreenhouseForm | None:
+    _, token, posting_id = job_id.split(":")
     try:
         with Client(timeout=8, follow_redirects=False) as client:
             data = _download_json(client, f"{token}/jobs/{int(posting_id)}", {"questions": "true"})
@@ -226,10 +232,15 @@ def fetch_assisted_form(job: Job) -> AssistedForm:
     except HTTPStatusError as error:
         if error.response.status_code in {404, 410}:
             raise PostingClosed("This employer posting is no longer available. Refresh the job listings.") from error
-        return AssistedForm(status="unavailable")
+        return None
     except (HTTPError, ValueError):
-        return AssistedForm(status="unavailable")
-    if form.id != int(posting_id):
+        return None
+    return form if form.id == int(posting_id) else None
+
+
+def fetch_assisted_form(job: Job) -> AssistedForm:
+    form = fetch_greenhouse_form(job.id)
+    if form is None:
         return AssistedForm(status="unavailable")
 
     questions: dict[str, ScreeningQuestionAnswer] = {}
@@ -254,7 +265,9 @@ def fetch_assisted_form(job: Job) -> AssistedForm:
         questions.setdefault(field.name, ScreeningQuestionAnswer(
             id=field.name, question=question.label.strip(), required=question.required, choices=choices,
         ))
-    return AssistedForm(status="partial" if skipped else "loaded", questions=list(questions.values()))
+    return AssistedForm(
+        status="partial" if skipped else "loaded", questions=list(questions.values()), greenhouse_form=form,
+    )
 
 
 def refresh_boards(boards: dict[str, str]) -> list[BoardRefresh]:

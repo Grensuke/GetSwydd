@@ -39,7 +39,7 @@ export function AnalysisHeader({ job }: { job: Job }) {
         )}
         <Badge tone="info">Source: {titleCaseEnum(job.source)}</Badge>
         {job.application_mode === "assisted" ? (
-          <Badge tone="attention">Assisted Mode</Badge>
+          <Badge tone="outline">Review required</Badge>
         ) : (
           <Badge tone="neutral">Demo Mode</Badge>
         )}

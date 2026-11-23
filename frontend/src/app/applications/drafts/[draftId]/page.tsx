@@ -113,7 +113,7 @@ function DraftEditor({ draftId }: { draftId: string }) {
 
   if (!draft) return loadingSkeleton;
 
-  const isLocked = Boolean(draft.submission || draft.reported_submitted_at);
+  const isLocked = Boolean(draft.submission || draft.reported_submitted_at || draft.employer_submission_status);
 
   async function handleSaveAnswers(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -234,7 +234,7 @@ function DraftEditor({ draftId }: { draftId: string }) {
         {/* Right Column: Sticky Review & Approval Aside */}
         <ReviewPanel
           draft={draft}
-          hasUnsavedChanges={hasChanges}
+          hasUnsavedChanges={hasChanges || saving}
           onRefreshDraft={() => setRetryCount((c) => c + 1)}
           onDraftUpdated={setDraft}
           onScrollToQuestion={scrollToQuestion}

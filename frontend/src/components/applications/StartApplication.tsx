@@ -9,7 +9,7 @@ import { ResumeSelector } from "./ResumeSelector";
 import { ELIGIBILITY_STATUS_MAP } from "@/lib/labels";
 
 export interface StartApplicationProps {
-  job: Job;
+  job: Pick<Job, "id" | "title" | "company" | "location" | "application_mode" | "match" | "apply_url" | "recommended_resume">;
   className?: string;
   triggerVariant?: "primary" | "secondary" | "quiet";
   triggerSize?: "sm" | "md";
@@ -99,7 +99,7 @@ export function StartApplication({
 
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               {job.application_mode === "assisted" ? (
-                <Badge tone="attention">Assisted Mode</Badge>
+                <Badge tone="outline">Review required</Badge>
               ) : (
                 <Badge tone="neutral">Demo Sandbox</Badge>
               )}
@@ -118,12 +118,9 @@ export function StartApplication({
           {isAssisted ? (
             <div className="space-y-3">
               <div className="p-3.5 rounded-md border border-hairline bg-paper text-xs space-y-1.5">
-                <span className="eyebrow block text-sage-deep">HOW ASSISTED MODE WORKS</span>
+                <span className="eyebrow block text-sage-deep">Review your draft</span>
                 <p className="text-ink-soft leading-relaxed">
-                  GetSwydd organizes verified screening answers from your profile. You review the package and copy the answers to complete your submission directly on the employer&apos;s site.
-                </p>
-                <p className="text-[11px] text-sage-deep italic">
-                  Rule 3: GetSwydd never submits without you.
+                  GetSwydd prepares answers from your confirmed profile. Review them before approving direct submission where available or finishing on the employer&apos;s site.
                 </p>
               </div>
 
