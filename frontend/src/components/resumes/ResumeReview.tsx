@@ -2,8 +2,19 @@
 
 import { useState, type FormEvent } from "react";
 import { confirmResume, factCategories, factLabels } from "@/app/resumes/resume-api";
-import { Button, Field, InlineNotice, Panel, Textarea } from "@/components/ui";
-import type { ResumeDetail } from "@/lib/api/types";
+import { Button, Field, InlineNotice, Input, Panel, Textarea } from "@/components/ui";
+import type { ResumeContact, ResumeDetail, ResumeFacts } from "@/lib/api/types";
+
+const contactFields = [
+  { name: "email", label: "Email", type: "email" },
+  { name: "phone", label: "Phone number", type: "tel" },
+  { name: "linkedin", label: "LinkedIn profile URL", type: "url" },
+  { name: "github", label: "GitHub profile URL", type: "url" },
+] as const;
+
+function editableFacts(facts: ResumeFacts) {
+  return Object.fromEntries(factCategories.map((category) => [category, facts[category].join("\n")]));
+}
 
 interface ResumeReviewProps {
   resume: ResumeDetail;
@@ -11,10 +22,8 @@ interface ResumeReviewProps {
 }
 
 export function ResumeReview({ resume, onConfirmed }: ResumeReviewProps) {
-  const [fields, setFields] = useState(() => {
-    const facts = resume.confirmed_facts ?? resume.suggested_facts;
-    return Object.fromEntries(factCategories.map((category) => [category, facts[category].join("\n")]));
-  });
+  const [fields, setFields] = useState(() => editableFacts(resume.confirmed_facts ?? resume.suggested_facts));
+  const [contact, setContact] = useState<ResumeContact>(resume.confirmed_contact ?? resume.suggested_contact ?? {});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +46,9 @@ export function ResumeReview({ resume, onConfirmed }: ResumeReviewProps) {
     setSaving(true);
     setError(null);
     try {
-      onConfirmed(await confirmResume(resume, facts));
+      const reviewedContact: ResumeContact = {};
+      for (const { name } of contactFields) reviewedContact[name] = contact[name]?.trim() || null;
+      onConfirmed(await confirmResume(resume, facts, reviewedContact));
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not confirm the resume.");
     } finally {
@@ -57,6 +68,27 @@ export function ResumeReview({ resume, onConfirmed }: ResumeReviewProps) {
       </details>
       <form onSubmit={save} className="space-y-3">
         <fieldset disabled={saving} className="space-y-4">
+          <div className="space-y-3 rounded-md border border-hairline p-3">
+            <h4 className="text-sm font-medium text-ink">Contact and profile links</h4>
+            <p className="text-xs text-sage-deep">Confirm the details you want GetSwydd to reuse in application drafts.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {contactFields.map(({ name, label, type }) => (
+                <Field key={name} label={label}>
+                  {({ id }) => (
+                    <Input id={id} type={type} value={contact[name] ?? ""} onChange={(event) => {
+                      const value = event.currentTarget.value;
+                      setContact((previous) => ({ ...previous, [name]: value }));
+                    }} />
+                  )}
+                </Field>
+              ))}
+            </div>
+          </div>
+          {resume.confirmed_facts && (
+            <Button variant="secondary" size="sm" onClick={() => setFields(editableFacts(resume.suggested_facts))}>
+              Use extracted fact suggestions
+            </Button>
+          )}
           {factCategories.map((category) => (
             <Field key={category} label={factLabels[category]}>
               {({ id }) => (

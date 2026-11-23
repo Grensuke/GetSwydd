@@ -276,7 +276,8 @@ Repeated requests for the same draft version return the original receipt. The en
 | `POST /api/v1/resumes` | Upload a multipart `file` field with a PDF or DOCX up to 5 MB. Returns the resume detail with `201`. Unsupported formats return `415`, oversize files return `413`, and unreadable files return `422`. |
 | `GET /api/v1/resumes` | Lists uploaded resumes with their IDs, filenames, upload timestamps, and review status. |
 | `GET /api/v1/resumes/{id}` | Returns a resume's extracted text, suggested facts, confirmed facts (initially `null`), and review revision. |
-| `PUT /api/v1/resumes/{id}/review` | Takes the current `revision` and the complete reviewed `facts` object, then returns the updated resume detail. Returns `409` if the revision is stale. |
+| `DELETE /api/v1/resumes/{id}` | Removes the upload and its contribution to matching. Returns `204`, including on retries after removal. |
+| `PUT /api/v1/resumes/{id}/review` | Takes the current `revision`, the complete reviewed `facts` object, and optional `contact`. Returns the updated resume detail. Returns `409` if the revision is stale. |
 | `GET /api/v1/profile` | Returns `facts`, an array of merged profile facts with `category`, `value`, and `sources`. Each source includes its resume ID and filename. |
 
 The review payload uses five groups of strings. Omit a group or send an empty array to confirm zero facts for that group.
@@ -295,6 +296,10 @@ The review payload uses five groups of strings. Omit a group or send an empty ar
 ```
 
 Suggestions come from text under common resume section headings. Reviewers can correct or remove any suggestion before confirming it. The profile merges equal facts within each category without regard to case or repeated spaces and retains every confirmed source. Files and profile data are stored locally in SQLite. The sample application workflow continues to use its synthetic candidate.
+
+Resume detail also returns `suggested_contact` and `confirmed_contact` for email, phone, LinkedIn, and GitHub. Suggestions use visible contact text and supported PDF or DOCX hyperlink targets. An existing upload is reprocessed when reopened. Previously confirmed facts remain available for review alongside the new suggestions. Sending `contact` confirms the supplied fields for that resume. Send null values inside the object to clear fields or omit the object to preserve previously confirmed contact details.
+
+New drafts copy confirmed contact details from the selected resume and prefill supported contact questions when a text field is available. The assisted application packet offers those details for copying into the official form. Existing drafts retain their snapshots after the original upload is removed. A fact confirmed on another resume stays in the profile.
 
 ## 6. Explainable Job Matching
 
@@ -524,6 +529,8 @@ Leave `GETSWYDD_DISCOVERY_MODEL` blank to use the selected provider's default. A
 ```
 
 `message` is required and accepts 1–1,500 characters after trimming. The other fields are optional. Use `resume_id` from `GET /api/v1/resumes` when the user picks a reviewed upload. The user can also name a resume in the message, which the agent resolves locally. When the user leaves the resume unspecified, matching uses the combined confirmed profile. Each request is self-contained. After a clarification, resubmit the full search with the clarified details or selected resume ID.
+
+Set `require_skill_match: true` to return only listings that match at least one recognized confirmed skill. The **Find jobs with this resume** panel sends this flag and the selected `resume_id`.
 
 By default the agent reads the local live-job catalog and returns up to five results. The `limit` field accepts 1–10 and caps any count requested in the message. `total_matches` counts all matches before that cap. Explicit filters override the corresponding saved preferences. The remaining preferences apply unless the user asks to ignore them.
 

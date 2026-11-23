@@ -9,6 +9,7 @@ import type {
   ConfirmedProfile,
   FactCategory,
   ProfileFact,
+  ResumeContact,
   ResumeDetail,
   ResumeFacts,
   ResumeSummary,
@@ -41,6 +42,6 @@ export function uploadResume(file: File): Promise<ResumeDetail> {
   return apiUploadResume(file);
 }
 
-export function confirmResume(resume: ResumeDetail, facts: ResumeFacts): Promise<ResumeDetail> {
-  return confirmResumeFacts(resume, facts);
+export function confirmResume(resume: ResumeDetail, facts: ResumeFacts, contact: ResumeContact): Promise<ResumeDetail> {
+  return confirmResumeFacts(resume, facts, undefined, contact);
 }

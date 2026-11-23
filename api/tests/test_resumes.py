@@ -1,12 +1,21 @@
 from io import BytesIO
+import sqlite3
 
 import pytest
 from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.opc.constants import RELATIONSHIP_TYPE
 from fastapi.testclient import TestClient
 from pypdf import PdfWriter
-from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+from pypdf.annotations import Link
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, TextStringObject
 
+from app import main
+from app.db import get_db_path, init_db
+from app.greenhouse import AssistedForm
 from app.main import app
+from app.models import Job, ScreeningQuestionAnswer
 from app.resume_parser import MAX_FILE_BYTES
 
 
@@ -17,7 +26,7 @@ def client(tmp_path, monkeypatch):
         yield session
 
 
-def sample_pdf():
+def sample_pdf(with_contact=False):
     writer = PdfWriter()
     page = writer.add_blank_page(width=612, height=792)
     font = DictionaryObject({
@@ -30,17 +39,42 @@ def sample_pdf():
     })
     stream = DecodedStreamObject()
     stream.set_data(
-        b"BT /F1 12 Tf 14 TL 72 720 Td (Technical Skills: Python, SQL) Tj T* "
+        b"BT /F1 12 Tf 14 TL 72 720 Td "
+        + (b"(LinkedIn | +91 98765 00000) Tj T* " if with_contact else b"")
+        + b"(Technical Skills: Python, SQL) Tj T* "
         b"(Projects) Tj T* (Built an internship tracker) Tj ET"
     )
     page.replace_contents(stream)
+    if with_contact:
+        annotation = Link(rect=(72, 710, 120, 722), target_page_index=0)
+        del annotation[NameObject("/Dest")]
+        annotation[NameObject("/A")] = DictionaryObject({
+            NameObject("/S"): NameObject("/URI"),
+            NameObject("/URI"): TextStringObject("https://www.linkedin.com/in/example-candidate/?source=resume"),
+        })
+        writer.add_annotation(page, annotation)
     output = BytesIO()
     writer.write(output)
     return output.getvalue()
 
 
-def sample_docx():
+def sample_docx(with_contact=False):
     document = Document()
+    if with_contact:
+        paragraph = document.add_paragraph()
+        for label, target in [
+            ("GitHub", "https://github.com/example-candidate"),
+            ("Call me", "tel:+919876500000"),
+            ("Email", "mailto:candidate@example.com"),
+        ]:
+            hyperlink = OxmlElement("w:hyperlink")
+            hyperlink.set(qn("r:id"), paragraph.part.relate_to(target, RELATIONSHIP_TYPE.HYPERLINK, is_external=True))
+            run = OxmlElement("w:r")
+            text = OxmlElement("w:t")
+            text.text = label
+            run.append(text)
+            hyperlink.append(run)
+            paragraph._p.append(hyperlink)
     document.add_heading("Technical Skills", level=1)
     document.add_paragraph("python, Git")
     document.add_heading("Education", level=1)
@@ -51,6 +85,103 @@ def sample_docx():
     document.save(output)
     return output.getvalue()
 
+
+def test_existing_pdf_is_reprocessed_and_confirmed_contacts_flow_to_a_saved_draft(client, monkeypatch):
+    resume = client.post("/api/v1/resumes", files={"file": ("example.pdf", sample_pdf(with_contact=True))}).json()
+    resume_url = f"/api/v1/resumes/{resume['id']}"
+    with sqlite3.connect(get_db_path()) as conn:
+        conn.execute("ALTER TABLE resumes DROP COLUMN suggested_contact")
+        conn.execute("ALTER TABLE resumes DROP COLUMN confirmed_contact")
+        conn.execute("UPDATE resumes SET suggested_facts = '{}', confirmed_facts = '{\"skills\":[\"Git\"]}', revision = 1")
+    init_db()
+    resume = client.get(resume_url).raise_for_status().json()
+    assert resume["suggested_facts"]["skills"] == ["Python", "SQL"]
+    assert resume["confirmed_facts"]["skills"] == ["Git"]
+    assert resume["suggested_contact"]["linkedin"] == "https://linkedin.com/in/example-candidate"
+    assert resume["suggested_contact"]["phone"] == "+91 98765 00000"
+    assert resume["confirmed_contact"] is None
+
+    job = Job(id="greenhouse:example:1", title="Engineering Intern", company="Example", location="India",
+              source="greenhouse", application_mode="assisted")
+    monkeypatch.setattr(main, "_lookup_job", lambda _: job)
+    monkeypatch.setattr(main, "fetch_assisted_form", lambda _: AssistedForm(
+        status="loaded", questions=[
+            ScreeningQuestionAnswer(id="phone", question="Phone number"),
+            ScreeningQuestionAnswer(id="linkedin", question="LinkedIn profile URL"),
+            ScreeningQuestionAnswer(id="other", question="Phone interview availability"),
+        ],
+    ))
+    client.put("/api/v1/profile/application-details", json={"candidate_name": "Example Candidate"}).raise_for_status()
+    request = {"job_id": job.id, "resume_id": resume["id"]}
+    unconfirmed = client.post("/api/v1/applications/drafts", json=request).raise_for_status().json()
+    assert unconfirmed["contact"] is None and all(q["answer"] is None for q in unconfirmed["screening_questions"])
+    review = {"revision": resume["revision"], "facts": resume["confirmed_facts"], "contact": resume["suggested_contact"]}
+    client.put(f"{resume_url}/review", json=review).raise_for_status()
+    draft = client.post("/api/v1/applications/drafts", json=request).raise_for_status().json()
+    assert draft["contact"] == resume["suggested_contact"]
+    assert [q["answer"] for q in draft["screening_questions"]] == [
+        resume["suggested_contact"]["phone"], resume["suggested_contact"]["linkedin"], None,
+    ]
+    assert draft["screening_questions"][1]["evidence"][0]["resume"]["resume_id"] == resume["id"]
+    assert client.get(f"/api/v1/applications/drafts/{draft['id']}").json()["contact"] == draft["contact"]
+
+
+def test_docx_extracts_hyperlink_targets(client):
+    data = client.post("/api/v1/resumes", files={"file": ("example.docx", sample_docx(with_contact=True))}).raise_for_status().json()
+    assert data["suggested_contact"] == {
+        "email": "candidate@example.com", "phone": "+919876500000",
+        "linkedin": None, "github": "https://github.com/example-candidate",
+    }
+    assert data["confirmed_contact"] is None
+
+
+def test_remove_resume_recalculates_profile_and_matches_without_removing_drafts(client):
+    first = client.post("/api/v1/resumes", files={"file": ("first.pdf", sample_pdf())}).raise_for_status().json()
+    second = client.post("/api/v1/resumes", files={"file": ("second.pdf", sample_pdf())}).raise_for_status().json()
+    for resume, skills in ((first, ["Python", "Flask", "Git"]), (second, ["Python", "SQL"])):
+        client.put(f"/api/v1/resumes/{resume['id']}/review", json={
+            "revision": resume["revision"], "facts": {"skills": skills},
+        }).raise_for_status()
+    client.put("/api/v1/profile/application-details", json={"candidate_name": "Example Candidate"}).raise_for_status()
+
+    def recommendation():
+        jobs = client.get("/api/v1/jobs").raise_for_status().json()["jobs"]
+        return next(job["match"]["recommended_resume"]["resume_id"] for job in jobs if job["id"] == "job-py-001")
+
+    draft_request = {"job_id": "job-py-001", "resume_id": first["id"]}
+    draft = client.post("/api/v1/applications/drafts", json=draft_request).raise_for_status().json()
+    assert recommendation() == first["id"]
+
+    resume_url = f"/api/v1/resumes/{first['id']}"
+    assert client.delete(resume_url).status_code == 204
+    assert client.delete(resume_url).status_code == 204
+    assert client.get(resume_url).status_code == 404
+    assert [resume["id"] for resume in client.get("/api/v1/resumes").json()] == [second["id"]]
+    profile = {fact["value"]: fact["sources"] for fact in client.get("/api/v1/profile").json()["facts"]}
+    assert set(profile) == {"Python", "SQL"}
+    assert profile["Python"] == [{"resume_id": second["id"], "filename": "second.pdf"}]
+    assert recommendation() == second["id"]
+    assert client.post("/api/v1/applications/drafts", json=draft_request).status_code == 404
+    assert client.get(f"/api/v1/applications/drafts/{draft['id']}").json() == draft
+
+
+def test_draft_creation_handles_resume_removed_while_reading_the_employer_form(client, monkeypatch):
+    resume = client.post("/api/v1/resumes", files={"file": ("example.pdf", sample_pdf())}).raise_for_status().json()
+    resume_url = f"/api/v1/resumes/{resume['id']}"
+    client.put(f"{resume_url}/review", json={"revision": 0, "facts": {"skills": ["Python"]}}).raise_for_status()
+    client.put("/api/v1/profile/application-details", json={"candidate_name": "Example Candidate"}).raise_for_status()
+    job = Job(id="greenhouse:example:1", title="Engineering Intern", company="Example", location="India",
+              source="greenhouse", application_mode="assisted")
+    monkeypatch.setattr(main, "_lookup_job", lambda _: job)
+
+    def fetch_form(_):
+        assert client.delete(resume_url).status_code == 204
+        return AssistedForm(status="loaded", questions=[])
+
+    monkeypatch.setattr(main, "fetch_assisted_form", fetch_form)
+    response = client.post("/api/v1/applications/drafts", json={"job_id": job.id, "resume_id": resume["id"]})
+    assert response.status_code == 409
+    assert "resume was removed" in response.json()["detail"]
 
 def test_upload_review_and_merge_confirmed_facts(client):
     pdf = client.post("/api/v1/resumes", files={"file": ("backend.pdf", sample_pdf())})

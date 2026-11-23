@@ -143,6 +143,27 @@ def test_search_uses_live_catalog_and_selected_resume_without_guessing_location(
     assert client.get("/api/v1/applications/assisted").json() == []
 
 
+def test_resume_search_excludes_match_evidence_from_other_resumes(client, monkeypatch):
+    backend = reviewed_resume("Backend.pdf", "Python")
+    database = reviewed_resume("Database.pdf", "SQL")
+    python_job = listing(1, "Backend Intern", "Pune", "Requirements\nPython")
+    sql_job = listing(2, "Database Intern", "Bengaluru", "Requirements\nSQL")
+    no_match = listing(3, "Design Intern", "Hyderabad", "Requirements\nFigma")
+    monkeypatch.setattr(discovery_agent, "interpret_message", lambda _: plan())
+    monkeypatch.setattr(discovery_agent, "live_jobs", lambda _: [python_job, sql_job, no_match])
+    payload = {"message": "Find jobs that match this resume", "resume_id": backend.id}
+
+    regular = client.post(AGENT_URL, json=payload).raise_for_status().json()
+    assert regular["total_matches"] == 3
+    filtered = client.post(AGENT_URL, json={**payload, "require_skill_match": True}).raise_for_status().json()
+    assert [job["job_id"] for job in filtered["jobs"]] == [python_job.id]
+    assert filtered["total_matches"] == 1
+    assert client.delete(f"/api/v1/resumes/{backend.id}").status_code == 204
+    missing = client.post(AGENT_URL, json={**payload, "require_skill_match": True}).raise_for_status().json()
+    assert missing["status"] == "needs_clarification"
+    assert [resume["resume_id"] for resume in missing["resume_options"]] == [database.id]
+
+
 def test_clarification_and_out_of_scope_do_not_search(client, monkeypatch):
     first = reviewed_resume("Backend 2025.pdf", "Python")
     second = reviewed_resume("Backend 2026.pdf", "Python")

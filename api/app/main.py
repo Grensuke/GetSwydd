@@ -297,7 +297,10 @@ def create_draft(payload: DraftCreateRequest) -> ApplicationDraft:
         assisted_questions=form.questions if form else None,
         form_status=form.status if form else "unavailable" if assisted else None,
     )
-    save_draft(draft)
+    try:
+        save_draft(draft)
+    except DraftConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     return draft
 
 

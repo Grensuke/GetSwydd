@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import {
+  deleteResume,
   getProfile,
   getResume,
   listResumes,
@@ -15,7 +16,8 @@ import type {
 import { formatRelativeDate } from "@/lib/format";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
 import { PageContainer } from "@/components/shell";
-import { Badge, ErrorState, PageHeader, Panel } from "@/components/ui";
+import { Badge, Button, ErrorState, PageHeader, Panel } from "@/components/ui";
+import { AgentDiscovery } from "@/components/discovery/AgentDiscovery";
 import { ResumeReview } from "@/components/resumes/ResumeReview";
 import { MasterProfilePanel } from "@/components/resumes/MasterProfilePanel";
 import { ResumeUploadZone } from "@/components/resumes/ResumeUploadZone";
@@ -30,6 +32,9 @@ export default function ResumesPage() {
   const [selectedDetail, setSelectedDetail] = useState<ResumeDetail | null>(null);
 
   const [uploading, setUploading] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,10 +51,7 @@ export default function ResumesPage() {
           setResumes(docs);
           setProfile(prof.facts);
           setLoadError(null);
-          // Auto-select first resume if none selected
-          if (!selectedId && docs.length > 0) {
-            setSelectedId(docs[0].id);
-          }
+          if (!docs.some((doc) => doc.id === selectedId)) setSelectedId(docs[0]?.id ?? null);
         }
       })
       .catch((err: unknown) => {
@@ -121,6 +123,30 @@ export default function ResumesPage() {
     setUploadNotice("Verified facts merged into your confirmed profile.");
     setRefreshTrigger((c) => c + 1);
   }
+
+  async function handleRemove(resume: ResumeSummary) {
+    if (removing) return;
+    setRemoving(true);
+    setRemoveError(null);
+    try {
+      await deleteResume(resume.id);
+      setResumes((current) => current?.filter((item) => item.id !== resume.id) ?? null);
+      setProfile((current) => current
+        .map((fact) => ({ ...fact, sources: fact.sources.filter((source) => source.resume_id !== resume.id) }))
+        .filter((fact) => fact.sources.length > 0));
+      setSelectedId((current) => current === resume.id ? null : current);
+      setSelectedDetail((current) => current?.id === resume.id ? null : current);
+      setRemoveTarget(null);
+      setUploadNotice(`“${resume.filename}” was removed.`);
+      setRefreshTrigger((count) => count + 1);
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : "Could not remove the resume.");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  const activeDetail = selectedDetail?.id === selectedId ? selectedDetail : null;
 
   return (
     <PageContainer>
@@ -194,6 +220,36 @@ export default function ResumesPage() {
                           Uploaded {formatRelativeDate(resume.uploaded_at)}
                         </p>
                       </button>
+                      {removeTarget === resume.id ? (
+                        <div className="mt-2 space-y-2 rounded-md border border-hairline p-2">
+                          <p className="text-xs text-ink-soft">
+                            Remove this upload and any facts unique to it? Existing application drafts keep their saved details.
+                          </p>
+                          {removeError && <p role="alert" className="text-xs text-brick">{removeError}</p>}
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="danger" loading={removing} onClick={() => void handleRemove(resume)}>
+                              {removing ? "Removing…" : "Remove resume"}
+                            </Button>
+                            <Button size="sm" variant="secondary" disabled={removing} onClick={() => setRemoveTarget(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="quiet"
+                          className="mt-2 text-xs"
+                          aria-label={`Remove ${resume.filename}`}
+                          disabled={removing}
+                          onClick={() => {
+                            setRemoveTarget(resume.id);
+                            setRemoveError(null);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </li>
                   );
                 })}
@@ -204,16 +260,25 @@ export default function ResumesPage() {
 
         {/* Right Column: Review Panel & Merged Confirmed Profile */}
         <div className="space-y-8 min-w-0">
-          {selectedDetail ? (
-            <ResumeReview
-              key={`${selectedDetail.id}:${selectedDetail.revision}`}
-              resume={selectedDetail}
-              onConfirmed={handleConfirmed}
-            />
+          {activeDetail ? (
+            <>
+              {Boolean(activeDetail.confirmed_facts?.skills.length) && (
+                <AgentDiscovery
+                  key={`search:${activeDetail.id}:${activeDetail.revision}`}
+                  resume={{ resume_id: activeDetail.id, filename: activeDetail.filename }}
+                />
+              )}
+              <ResumeReview
+                key={`${activeDetail.id}:${activeDetail.revision}`}
+                resume={activeDetail}
+                onConfirmed={handleConfirmed}
+              />
+            </>
           ) : (
             <Panel className="p-8 text-center text-sage-deep">
-              <span className="eyebrow block mb-2">NO SELECTION</span>
-              <p className="text-sm">Select an uploaded resume on the left to review its extracted facts.</p>
+              <p className="text-sm">
+                {selectedId ? "Loading resume…" : "Select an uploaded resume to review its extracted facts."}
+              </p>
             </Panel>
           )}
 

@@ -1,6 +1,7 @@
 import { requestJson } from "./client";
 import type {
   ConfirmedProfile,
+  ResumeContact,
   ResumeDetail,
   ResumeFacts,
   ResumeReview,
@@ -39,6 +40,10 @@ export function getResume(resumeId: string, signal?: AbortSignal): Promise<Resum
   });
 }
 
+export async function deleteResume(resumeId: string): Promise<void> {
+  await requestJson<void>(`/api/v1/resumes/${encodeURIComponent(resumeId)}`, { method: "DELETE" });
+}
+
 /**
  * PUT /api/v1/resumes/{resume_id}/review
  * Confirm verified facts for an uploaded resume, merging them into the candidate profile.
@@ -61,9 +66,10 @@ export function reviewResume(
 export function confirmResumeFacts(
   resume: ResumeDetail,
   facts: ResumeFacts,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  contact?: ResumeContact
 ): Promise<ResumeDetail> {
-  return reviewResume(resume.id, { revision: resume.revision, facts }, signal);
+  return reviewResume(resume.id, { revision: resume.revision, facts, contact }, signal);
 }
 
 /**

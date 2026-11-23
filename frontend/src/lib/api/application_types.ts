@@ -1,4 +1,4 @@
-import type { ProfileSource } from "./types";
+import type { ProfileSource, ResumeContact } from "./types";
 
 export interface AnswerEvidence {
   value: string;
@@ -54,6 +54,7 @@ export interface ApplicationDraft {
   candidate_name: string;
   selected_resume: string;
   resume_id?: string | null;
+  contact?: ResumeContact | null;
   mode: "demo" | "personalized" | "assisted";
   apply_url?: string | null;
   form_status?: "loaded" | "partial" | "unavailable" | null;

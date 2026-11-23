@@ -43,6 +43,13 @@ export interface ResumeFacts {
   certifications: string[];
 }
 
+export interface ResumeContact {
+  email?: string | null;
+  phone?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+}
+
 export interface ResumeSummary {
   id: string;
   filename: string;
@@ -54,12 +61,15 @@ export interface ResumeDetail extends ResumeSummary {
   extracted_text: string;
   suggested_facts: ResumeFacts;
   confirmed_facts: ResumeFacts | null;
+  suggested_contact?: ResumeContact;
+  confirmed_contact?: ResumeContact | null;
   revision: number;
 }
 
 export interface ResumeReview {
   facts: ResumeFacts;
   revision: number;
+  contact?: ResumeContact;
 }
 
 export interface RequirementMatch {
@@ -185,6 +195,7 @@ export interface JobDiscoveryRequest {
   resume_id?: string;
   limit?: number;
   refresh?: boolean;
+  require_skill_match?: boolean;
 }
 
 export interface DiscoveryJob {
