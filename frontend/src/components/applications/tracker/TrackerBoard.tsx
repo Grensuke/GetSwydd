@@ -45,7 +45,7 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
   const columns: BoardColumnDef[] = useMemo(() => {
     const list: BoardColumnDef[] = [
       { key: "preparing", label: "Preparing", kind: "confirmed", description: "In preparation" },
-      { key: "submitted_reported", label: "Submitted (reported)", kind: "confirmed", description: "Reported submitted" },
+      { key: "submitted_reported", label: "Submitted", kind: "confirmed", description: "Employer-confirmed and user-reported" },
       { key: "assessment", label: "Assessment", kind: "personal", description: "Tests & assignments" },
       { key: "interview", label: "Interview", kind: "personal", description: "Conversations & rounds" },
       { key: "offer", label: "Offer", kind: "personal", description: "Offers received" },
@@ -73,8 +73,10 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
       const personal = personalStatuses[app.key];
       if (personal?.stage && buckets[personal.stage]) {
         buckets[personal.stage].push(app);
-      } else if (buckets[app.confirmedStage]) {
-        buckets[app.confirmedStage].push(app);
+      } else {
+        const stage = app.confirmedStage === "submitted_direct" ? "submitted_reported"
+          : app.confirmedStage === "submission_pending" ? "preparing" : app.confirmedStage;
+        buckets[stage]?.push(app);
       }
     });
 

@@ -73,6 +73,7 @@ class DiscoveryJob(BaseModel):
     location: str
     source: ExternalSource
     apply_url: str
+    email_application_available: bool = False
     application_deadline: str | None
     match: JobMatch | None
     applicant_location_check: LocationCheck

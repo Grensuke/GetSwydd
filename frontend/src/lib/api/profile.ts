@@ -3,22 +3,21 @@ import type { ApplicationDetails } from "./types";
 
 /**
  * GET /api/v1/profile/application-details
- * Load saved application details (candidate name, availability, UK work authorization).
+ * Load saved application details.
  */
 export function getApplicationDetails(signal?: AbortSignal): Promise<ApplicationDetails> {
   return requestJson<ApplicationDetails>("/api/v1/profile/application-details", { signal });
 }
 
 /**
- * PUT /api/v1/profile/application-details
- * Confirm candidate application details for personalized draft generation.
+ * Update the general profile fields used in application drafts.
  */
 export function saveApplicationDetails(
   details: ApplicationDetails,
   signal?: AbortSignal
 ): Promise<ApplicationDetails> {
   return requestJson<ApplicationDetails>("/api/v1/profile/application-details", {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(details),
     signal,
   });

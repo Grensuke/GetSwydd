@@ -12,13 +12,13 @@ SYNTHETIC_CANDIDATE = {
     "id": "cand-001",
     "name": "Alex Morgan",
     "email": "alex.morgan@example.com",
-    "location": "Cardiff, UK",
+    "location": "Bengaluru, India",
     "verified_facts": {
         "python_experience": "Proficient in Python 3, FastAPI, and Flask with 2 years of project and coursework experience.",
         "git_workflow": "Comfortable with Git branching, pull requests, code reviews, and GitHub Actions.",
         "sql_experience": "Hands-on experience writing complex SQL queries, relational joins, and database normalization.",
         "data_analysis": "Skilled in pandas, NumPy, and exploratory data visualization with Matplotlib and Seaborn.",
-        "work_authorization": "Authorized to work in the UK without visa sponsorship required.",
+        "india_work_authorization": "Yes, I am legally authorized to work in India.",
         # NOTE: 'availability' is deliberately omitted from verified profile facts!
         # This enforces Rule 1: We never hallucinate or guess missing facts.
     },
@@ -35,9 +35,9 @@ JOB_SCREENING_TEMPLATES: Dict[str, List[Dict]] = {
         },
         {
             "id": "work_authorization",
-            "question": "Are you legally authorized to work in the UK for this role?",
+            "question": "Are you legally authorized to work in India for this role?",
             "required": True,
-            "fact_key": "work_authorization",
+            "fact_key": "india_work_authorization",
         },
         {
             "id": "availability",
@@ -61,9 +61,9 @@ JOB_SCREENING_TEMPLATES: Dict[str, List[Dict]] = {
         },
         {
             "id": "work_authorization",
-            "question": "Are you legally authorized to work in the UK for this role?",
+            "question": "Are you legally authorized to work in India for this role?",
             "required": True,
-            "fact_key": "work_authorization",
+            "fact_key": "india_work_authorization",
         },
     ],
 }

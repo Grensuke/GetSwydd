@@ -1,10 +1,11 @@
 """SQLite persistence layer for GetSwydd application drafts."""
 import os
 import sqlite3
+from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from uuid import uuid4
 
 from app.models import ApplicationDraft, AssistedApplication, JobSearchPreferences, SubmissionReceipt
@@ -189,8 +190,8 @@ def edit_draft(draft_id: str, answers: dict[str, str]) -> Optional[ApplicationDr
         draft = _read_draft(conn, draft_id)
         if draft is None:
             return None
-        if draft.submission or draft.reported_submitted_at:
-            raise DraftConflict("This draft has already been submitted.")
+        if draft.submission or draft.reported_submitted_at or draft.employer_submission_status:
+            raise DraftConflict("This draft is locked for submission.")
         draft = apply_screening_answers(draft, answers)
         _update_draft(conn, draft)
         return draft
@@ -207,7 +208,12 @@ def _update_draft(conn: sqlite3.Connection, draft: ApplicationDraft) -> None:
     )
 
 
-def deliver_to_test_employer(draft_id: str, approved_version: str) -> Optional[SubmissionReceipt]:
+def deliver_to_test_employer(
+    draft_id: str,
+    approved_version: str,
+    *,
+    confirm_browser: Callable[[ApplicationDraft], None] | None = None,
+) -> Optional[SubmissionReceipt]:
     """Record the approved payload in the local test inbox and return its receipt."""
     with closing(sqlite3.connect(get_db_path())) as conn, conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -222,6 +228,8 @@ def deliver_to_test_employer(draft_id: str, approved_version: str) -> Optional[S
             return draft.submission
         if not draft.ready_for_review:
             raise DraftConflict("Answer the required questions before submitting.")
+        if confirm_browser:
+            confirm_browser(draft)
 
         receipt = SubmissionReceipt(
             id=f"test-{uuid4().hex}",
@@ -253,6 +261,7 @@ def list_test_submissions() -> list[SubmissionReceipt]:
 def _assisted_summary(draft: ApplicationDraft) -> AssistedApplication:
     if draft.mode != "assisted" or draft.apply_url is None:
         raise DraftConflict("Only assisted drafts can be marked as submitted by the user.")
+    outcome = draft.employer_submission_status
     return AssistedApplication(
         draft_id=draft.id,
         job_id=draft.job_id,
@@ -260,9 +269,12 @@ def _assisted_summary(draft: ApplicationDraft) -> AssistedApplication:
         company=draft.company,
         selected_resume=draft.selected_resume,
         apply_url=draft.apply_url,
-        status="submitted" if draft.reported_submitted_at else "draft",
-        status_source="user_reported" if draft.reported_submitted_at else "getswydd",
+        status="submitted" if draft.reported_submitted_at or outcome == "submitted"
+        else "unconfirmed" if outcome else "draft",
+        status_source=(draft.employer_submission_source or "greenhouse") if outcome
+        else "user_reported" if draft.reported_submitted_at else "getswydd",
         reported_submitted_at=draft.reported_submitted_at,
+        employer_submitted_at=draft.employer_submitted_at,
         updated_at=draft.updated_at,
     )
 
@@ -274,13 +286,68 @@ def report_assisted_submission(draft_id: str) -> AssistedApplication | None:
         if draft is None:
             return None
         current = _assisted_summary(draft)
-        if current.status == "submitted":
+        if draft.reported_submitted_at:
             return current
+        if _job_has_delivery(conn, draft.job_id, include_reported=False):
+            raise DraftConflict("This job already has an employer submission on record or awaiting confirmation.")
         now = datetime.now(timezone.utc).isoformat()
         draft.reported_submitted_at = now
         draft.updated_at = now
         _update_draft(conn, draft)
         return _assisted_summary(draft)
+
+
+def _job_has_delivery(conn: sqlite3.Connection, job_id: str, *, include_reported: bool) -> bool:
+    return conn.execute(
+        """
+        SELECT 1 FROM application_drafts
+        WHERE job_id = ? AND (
+            json_extract(data_json, '$.employer_submission_status') IS NOT NULL
+            OR (? AND json_extract(data_json, '$.reported_submitted_at') IS NOT NULL)
+        ) LIMIT 1
+        """,
+        (job_id, include_reported),
+    ).fetchone() is not None
+
+
+def claim_employer_submission(
+    draft_id: str, approved_version: str, source: Literal["greenhouse", "gmail"] = "greenhouse",
+) -> bytes:
+    """Persist the claim before sending, including across processes."""
+    with closing(sqlite3.connect(get_db_path())) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        draft = _read_draft(conn, draft_id)
+        if draft is None or draft.updated_at != approved_version:
+            raise DraftConflict("This draft changed. Reload it and review the saved answers again.")
+        if _job_has_delivery(conn, draft.job_id, include_reported=True):
+            raise DraftConflict("This job already has a submission on record or awaiting confirmation.")
+        row = conn.execute(
+            "SELECT original_file FROM resumes WHERE id = ? AND confirmed_facts IS NOT NULL", (draft.resume_id,),
+        ).fetchone()
+        if row is None or not row[0]:
+            raise DraftConflict("The reviewed resume is unavailable. Prepare a new draft with a reviewed resume.")
+        draft.employer_submission_status = "sending"
+        draft.employer_submission_source = source
+        _update_draft(conn, draft)
+        return row[0]
+
+
+def finish_employer_submission(draft_id: str, outcome: str, receipt_id: str | None = None) -> ApplicationDraft:
+    with closing(sqlite3.connect(get_db_path())) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        draft = _read_draft(conn, draft_id)
+        if draft is None or draft.employer_submission_status != "sending":
+            raise DraftConflict("Reload this draft to see its submission status.")
+        now = datetime.now(timezone.utc).isoformat()
+        draft.updated_at = now
+        draft.employer_submission_status = None if outcome == "rejected" else outcome
+        if outcome == "rejected":
+            draft.employer_submission_source = None
+        if outcome == "submitted":
+            draft.employer_submitted_at = now
+            draft.employer_receipt_id = receipt_id
+        _update_draft(conn, draft)
+        return draft
 
 
 def list_assisted_applications() -> list[AssistedApplication]:

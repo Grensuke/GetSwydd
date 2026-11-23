@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { ApplicationDetails } from "@/lib/api/types";
-import { Button, Field, Input, Panel, Select, SourceTag, Textarea } from "@/components/ui";
+import { Button, Field, Input, Panel, SourceTag, Textarea } from "@/components/ui";
 
 export interface ProfileFormProps {
   initialData: ApplicationDetails | null;
@@ -10,8 +10,6 @@ export interface ProfileFormProps {
   onCandidateNameChange: (val: string) => void;
   availability: string;
   onAvailabilityChange: (val: string) => void;
-  ukAuth: "authorized" | "not_authorized" | "";
-  onUkAuthChange: (val: "authorized" | "not_authorized" | "") => void;
   isDirty: boolean;
   saving: boolean;
   saveError: string | null;
@@ -26,8 +24,6 @@ export function ProfileForm({
   onCandidateNameChange,
   availability,
   onAvailabilityChange,
-  ukAuth,
-  onUkAuthChange,
   isDirty,
   saving,
   saveError,
@@ -36,7 +32,7 @@ export function ProfileForm({
   onDiscard,
 }: ProfileFormProps) {
   return (
-    <Panel eyebrow="REUSED PARTICULARS" title="Identity & Work Logistics">
+    <Panel title="Application details">
       <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5">
         {/* 1. Candidate Full Name (Required) */}
         <div className="space-y-2 p-4 rounded-md border border-hairline bg-paper">
@@ -45,9 +41,9 @@ export function ProfileForm({
             <SourceTag source={initialData?.candidate_name ? "user_supplied" : "missing"} />
           </div>
           <Field
-            label="Full Candidate Name"
+            label="Full name"
             required
-            hint="Used as your official candidate name on all prepared application draft packages."
+            hint="Used on the application drafts you prepare."
             error={fieldErrors.candidateName}
           >
             {({ id, ariaDescribedBy }) => (
@@ -68,10 +64,10 @@ export function ProfileForm({
         <div className="space-y-2 p-4 rounded-md border border-hairline bg-paper">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-2">
             <span className="eyebrow">SCHEDULE & AVAILABILITY</span>
-            <SourceTag source={initialData?.availability ? "user_supplied" : "missing"} />
+            {initialData?.availability && <SourceTag source="user_supplied" />}
           </div>
           <Field
-            label="Earliest Availability & Hours"
+            label="Availability (optional)"
             hint="Used when screening asks for your earliest start date and weekly commitment."
             error={fieldErrors.availability}
           >
@@ -82,42 +78,10 @@ export function ProfileForm({
                 aria-describedby={ariaDescribedBy}
                 value={availability}
                 onChange={(e) => onAvailabilityChange(e.currentTarget.value)}
-                placeholder="e.g. Available immediately, 40 hours per week from June 1st."
+                placeholder="e.g. From 1 June, 20 hours per week"
                 maxLength={350}
                 error={Boolean(fieldErrors.availability)}
               />
-            )}
-          </Field>
-        </div>
-
-        {/* 3. UK Work Authorization (Optional Enum) */}
-        <div className="space-y-2 p-4 rounded-md border border-hairline bg-paper">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-2">
-            <span className="eyebrow">RIGHT TO WORK</span>
-            <SourceTag source={initialData?.uk_work_authorization ? "user_supplied" : "missing"} />
-          </div>
-          <Field
-            label="UK Work Authorization"
-            hint="Used when an employer asks whether you are legally authorized to work in the UK without visa sponsorship."
-          >
-            {({ id, ariaDescribedBy }) => (
-              <Select
-                id={id}
-                aria-describedby={ariaDescribedBy}
-                value={ukAuth}
-                onChange={(e) => {
-                  const val = e.currentTarget.value as "authorized" | "not_authorized" | "";
-                  onUkAuthChange(val);
-                }}
-              >
-                <option value="">Not specified (leave blank for user review)</option>
-                <option value="authorized">
-                  Authorized to work in the UK (no sponsorship required)
-                </option>
-                <option value="not_authorized">
-                  Not authorized / requires visa sponsorship
-                </option>
-              </Select>
             )}
           </Field>
         </div>

@@ -59,6 +59,9 @@ export interface ApplicationDraft {
   apply_url?: string | null;
   form_status?: "loaded" | "partial" | "unavailable" | null;
   reported_submitted_at?: string | null;
+  greenhouse_form_hash?: string | null;
+  employer_submission_status?: "sending" | "uncertain" | "submitted" | null;
+  employer_submitted_at?: string | null;
   screening_questions: ScreeningQuestionAnswer[];
   missing_required_questions: string[];
   ready_for_review: boolean;
@@ -74,8 +77,9 @@ export interface AssistedApplication {
   company: string;
   selected_resume: string;
   apply_url: string;
-  status: "draft" | "submitted";
-  status_source: "getswydd" | "user_reported";
+  status: "draft" | "submitted" | "unconfirmed";
+  status_source: "getswydd" | "user_reported" | "greenhouse";
   reported_submitted_at: string | null;
+  employer_submitted_at?: string | null;
   updated_at: string;
 }

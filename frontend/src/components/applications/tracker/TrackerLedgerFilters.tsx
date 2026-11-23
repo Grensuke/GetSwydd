@@ -60,6 +60,8 @@ export function TrackerLedgerFilters({
           <option value="all">All confirmed stages</option>
           <option value="preparing">Preparing</option>
           <option value="submitted_reported">Submitted (reported)</option>
+          <option value="submitted_direct">Employer confirmed</option>
+          <option value="submission_pending">Confirmation pending</option>
           <option value="test_submitted">Test submission</option>
         </Select>
       </div>

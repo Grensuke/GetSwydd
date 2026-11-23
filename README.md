@@ -34,6 +34,16 @@ npm.cmd run dev -- --port 3000
 
 Open [GetSwydd](http://localhost:3000). The frontend defaults to `http://127.0.0.1:8000`. To override it, set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` using the template in `frontend/.env.example`.
 
+### Try the browser application demo
+
+Run this once from `api/` after installing `requirements.txt`.
+
+```powershell
+.\.venv\Scripts\python.exe -m playwright install chromium
+```
+
+Run the backend from your desktop with the loopback host shown above and omit `--reload` for the browser demo. In Discover, select **Demo**, open **Data Analyst Internship**, and start a demo draft with the sample résumé. Select **Fill mock employer form**. Review the sample name, email, résumé, and screening answers in the Chromium window, then return to GetSwydd and select **Approve and submit test application**. The browser shows confirmation and the receipt appears in **Applications**. The demo uses one browser preview at a time.
+
 ## Browse jobs in India
 
 The frontend opens the live catalog with **India and worldwide remote** selected. It includes jobs with an Indian city or India in the listed location and roles explicitly open worldwide. Choose **All locations** for international listings. The **Demo** source opens the sample catalog. Compensation preferences use INR by default.
@@ -75,4 +85,4 @@ A successful search returns HTTP 200. The match count depends on the catalog. `t
 - From `api/`, run `.\.venv\Scripts\python.exe -m pytest -q`.
 - From `frontend/`, run `npm.cmd run lint` and `npm.cmd run build`.
 
-Real employer applications use assisted mode. GetSwydd prepares the materials, and the candidate completes the employer's form. The approval and submission test flow writes to a local test inbox.
+The browser demo uses a mock employer and the local test inbox. Live listings use assisted mode or direct submission when the employer has enabled the [Greenhouse integration](docs/api-contract.md#91-employer-authorized-greenhouse-submission).

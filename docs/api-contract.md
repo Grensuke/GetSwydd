@@ -46,7 +46,7 @@ Lists demo roles by default. Use `source=live` for configured public employer fe
       "id": "job-py-001",
       "title": "Python Developer Internship",
       "company": "Aether Labs",
-      "location": "Cardiff, UK (Hybrid)",
+      "location": "Bengaluru, India (Hybrid)",
       "eligibility": "Students or recent grads proficient in Python 3, FastAPI or Flask, and basic Git workflow",
       "recommended_resume": "Backend_Python_Intern_Resume.pdf",
       "description": "Build scalable API microservices and automated job ingestion pipelines with Python and FastAPI.",
@@ -313,17 +313,16 @@ Rules use explicit skill names and aliases from confirmed profile facts, with ca
 
 ## 7. Personalized Application Drafts
 
-Use `GET /api/v1/profile/application-details` to load the candidate's saved application details. Use `PUT` on the same path to confirm the complete set. Omitted fields and explicit `null` both clear a field. A name is required to start a personalized draft. Availability and UK work authorization may be left unknown.
+Use `GET /api/v1/profile/application-details` to load the candidate's saved application details. Use `PATCH` on the same path to update the general profile fields shown in the app. A name is required to start a personalized draft. Availability is optional. Omit a field to preserve it or send `null` to clear it.
 
 ```json
 {
   "candidate_name": "Casey Doe",
-  "availability": "June, 20 hours per week",
-  "uk_work_authorization": null
+  "availability": "June, 20 hours per week"
 }
 ```
 
-`uk_work_authorization` accepts `authorized`, `not_authorized`, or `null`.
+The profile page leaves work authorization to the employer's application questions. Legacy clients can still replace application details with `PUT`, which accepts `uk_work_authorization` as `authorized`, `not_authorized`, or `null`. Legacy answers only apply to explicit UK requirements.
 
 To start a personalized draft, send the selected upload's ID in the existing create request:
 
@@ -351,7 +350,7 @@ Example response excerpt when the user still needs to answer the work authorizat
   "screening_questions": [
     {
       "id": "work_authorization",
-      "question": "Are you legally authorized to work in the UK for this role?",
+      "question": "Are you legally authorized to work in India for this role?",
       "required": true,
       "answer": null,
       "source": null,
@@ -410,7 +409,7 @@ Greenhouse drafts can include imported questions. Lever and Ashby drafts return 
 | `screening_questions[].choices` | Use a text input if empty, otherwise offer the listed values. Save by sending the selected label as the answer string. |
 | `ready_for_review` | Reports completion of the local screening questions. The employer's form may ask for additional information. |
 
-Use the existing answer update route to save changes. Prefill requires a direct match to a supported confirmed profile field. Other responses remain blank until the user fills them in. Fields for file uploads, consent, and demographics are completed on the employer's page.
+Use the existing answer update route to save changes. Prefill requires a direct match to a supported confirmed profile field. Other responses remain blank until the user fills them in. In the assisted flow, complete uploads, consent, and demographic fields on the employer's page.
 
 Use `GET /api/v1/applications/assisted` to list the real drafts in the tracker. After the user says they finished on the employer's site, send `PUT /api/v1/applications/drafts/{id}/reported-submission` with `{"submitted":true}`. The response combines the tracker status and job details:
 
@@ -429,7 +428,22 @@ Use `GET /api/v1/applications/assisted` to list the real drafts in the tracker. 
 }
 ```
 
-Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, and a null submission time. Repeating a report returns the same timestamp, and reported drafts become read-only. The original test inbox endpoint accepts demo drafts. Employer communications for assisted drafts are limited to public form reads. The tracker records the user's account of completion.
+Before reporting, entries have `status: "draft"`, `status_source: "getswydd"`, and a null submission time. Repeating a report returns the same timestamp, and reported drafts become read-only. The original test inbox endpoint accepts demo drafts.
+
+### 9.1 Employer-authorized Greenhouse submission
+
+Both AI Search and the job catalog open the same application draft. On the local GetSwydd API, set `GETSWYDD_GREENHOUSE_SUBMISSION_KEYS` to a JSON map of opted-in board tokens to employer-issued Job Board API keys. The board must also be present in `GETSWYDD_GREENHOUSE_BOARDS`. Keep the keys in the API's environment and bind this single-user API to loopback. See the [Greenhouse Job Board API](https://docs.greenhouse.io/job-board#submit-an-application).
+
+Create a fresh draft after enabling the board. Supported forms have `greenhouse_form_hash` set and show the contact fields alongside the screening questions. Review those answers and the selected PDF or DOCX. Forms with unsupported required fields, location, or compliance questions use the employer form.
+
+After explicit approval, send `POST /api/v1/applications/drafts/{id}/employer-submission` with `{"approved":true,"draft_updated_at":"<reviewed version>"}`. The API rechecks the employer form and the draft version, validates required fields, and attaches the original reviewed resume.
+
+| Result | Behavior |
+|---|---|
+| `employer_submission_status: "submitted"` | Greenhouse accepted the request. The tracker displays an employer-confirmed application. |
+| `employer_submission_status: "sending"` or `"uncertain"` | Refresh the draft to check its status. Confirm receipt with the employer before submitting another application. The API prevents a second direct submission while receipt is uncertain. |
+| `409` | Review the error. A changed employer form requires a new draft, and a changed draft requires fresh approval. |
+| `502` | The form could not be checked, or Greenhouse rejected the request. The error describes which action failed. |
 
 ## 10. Job Search and Saved Preferences
 

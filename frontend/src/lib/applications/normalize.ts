@@ -22,8 +22,9 @@ export interface TrackedApplication {
 }
 
 export function normalizeAssisted(app: AssistedApplication): TrackedApplication {
-  const isSubmitted = app.status === "submitted" && app.status_source === "user_reported";
-  const confirmedStage: ConfirmedStage = isSubmitted ? "submitted_reported" : "preparing";
+  const confirmedStage: ConfirmedStage = app.status_source === "greenhouse"
+    ? app.status === "submitted" ? "submitted_direct" : "submission_pending"
+    : app.status === "submitted" && app.status_source === "user_reported" ? "submitted_reported" : "preparing";
   const stageInfo = CONFIRMED_STAGE_MAP[confirmedStage];
 
   return {
@@ -37,7 +38,7 @@ export function normalizeAssisted(app: AssistedApplication): TrackedApplication 
     applyUrl: app.apply_url || null,
     confirmedStage,
     confirmedSource: stageInfo.sourceTag,
-    submittedAt: app.reported_submitted_at || null,
+    submittedAt: app.employer_submitted_at || app.reported_submitted_at || null,
     updatedAt: app.updated_at || app.reported_submitted_at || new Date().toISOString(),
     links: {
       draft: `/applications/drafts/${encodeURIComponent(app.draft_id)}`,

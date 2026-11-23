@@ -20,9 +20,10 @@ export function DraftHeader({ draft }: DraftHeaderProps) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="eyebrow text-sage-deep">{draft.company}</span>
         <div className="flex items-center gap-2">
-          <Badge tone={modeInfo.tone}>{modeInfo.label}</Badge>
+          <Badge tone={modeInfo.tone}>{draft.greenhouse_form_hash ? "Employer application" : modeInfo.label}</Badge>
           {draft.submission && <Badge tone="verified">Submitted</Badge>}
           {draft.reported_submitted_at && <Badge tone="verified">Reported Submitted</Badge>}
+          {draft.employer_submission_status === "submitted" && <Badge tone="verified">Employer confirmed</Badge>}
         </div>
       </div>
 

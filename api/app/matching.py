@@ -3,6 +3,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 
+from app.application_email import application_email_instruction
 from app.models import Job, JobMatch, RequirementMatch, ResumeRecommendation
 from app.resume_models import ApplicationDetails, ConfirmedProfile, ProfileFact
 
@@ -35,7 +36,7 @@ REQUIREMENTS: dict[str, JobRequirements] = {
             WEB_FRAMEWORK,
             SkillRequirement("Git", ("git", "git version control", "git workflow")),
         ),
-        manual_checks=("Current student or recent graduate", "UK work authorization"),
+        manual_checks=("Current student or recent graduate", "India work authorization"),
     ),
     "job-da-002": JobRequirements(
         skills=(
@@ -48,7 +49,7 @@ REQUIREMENTS: dict[str, JobRequirements] = {
                 ("communication", "communication skills", "written communication", "verbal communication"),
             ),
         ),
-        manual_checks=("UK work authorization",),
+        manual_checks=("India work authorization",),
     ),
 }
 
@@ -106,6 +107,8 @@ def match_jobs(
         explicitly_required = set()
         live = job.source != "demo"
         if live:
+            if application_email_instruction(job):
+                job = job.model_copy(update={"email_application_available": True})
             original = job.description or ""
             description = normalize_skill(original)
             required = normalize_skill("\n".join(

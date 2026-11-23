@@ -283,7 +283,7 @@ def test_job_matches_use_confirmed_evidence_and_recommend_a_resume_for_each_role
     requirements = {item["label"]: item for item in python["requirements"]}
     assert requirements["FastAPI or Flask"]["evidence"][0]["value"] == "Flask"
     assert requirements["Current student or recent graduate"]["status"] == "needs_confirmation"
-    assert requirements["UK work authorization"]["status"] == "needs_confirmation"
+    assert requirements["India work authorization"]["status"] == "needs_confirmation"
     data_requirements = {item["label"]: item for item in data["requirements"]}
     assert data_requirements["Communication"]["status"] == "no_confirmed_evidence"
     assert [item["value"] for item in data_requirements["SQL"]["evidence"]] == ["SQL"]
@@ -327,7 +327,11 @@ def test_draft_uses_the_selected_resume_and_preserves_the_confirmed_snapshot(cli
 
     profile_url = "/api/v1/profile/application-details"
     saved = client.put(
-        profile_url, json={"candidate_name": " Casey Doe ", "availability": "June, 20 hours per week"}
+        profile_url,
+        json={
+            "candidate_name": " Casey Doe ", "availability": "June, 20 hours per week",
+            "uk_work_authorization": "authorized",
+        },
     )
     assert saved.status_code == 200
     assert client.get(profile_url).json() == saved.json()
@@ -345,9 +349,15 @@ def test_draft_uses_the_selected_resume_and_preserves_the_confirmed_snapshot(cli
     assert questions["python_experience"]["answer"] == "Confirmed skills: Python 3."
     assert questions["python_experience"]["evidence"][0]["resume"]["resume_id"] == selected["id"]
     assert questions["availability"]["evidence"][0]["profile_field"] == "availability"
+    assert "India" in questions["work_authorization"]["question"]
     assert questions["work_authorization"]["answer"] is None
 
-    assert client.put(profile_url, json={"candidate_name": "New name"}).status_code == 200
+    response = client.patch(profile_url, json={"candidate_name": "New name", "availability": None})
+    assert response.status_code == 200
+    assert response.json() == {
+        "candidate_name": "New name", "availability": None, "uk_work_authorization": "authorized",
+    }
+    assert client.get(profile_url).json() == response.json()
     draft_url = f"/api/v1/applications/drafts/{draft['id']}"
     assert client.get(draft_url).json() == draft
 

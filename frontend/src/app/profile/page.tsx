@@ -14,7 +14,6 @@ export default function ProfilePage() {
   const [initialData, setInitialData] = useState<ApplicationDetails | null>(null);
   const [candidateName, setCandidateName] = useState("");
   const [availability, setAvailability] = useState("");
-  const [ukAuth, setUkAuth] = useState<"authorized" | "not_authorized" | "">("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,7 +34,6 @@ export default function ProfilePage() {
           setInitialData(data);
           setCandidateName(data.candidate_name || "");
           setAvailability(data.availability || "");
-          setUkAuth(data.uk_work_authorization || "");
           setLoadError(null);
         }
       } catch (err: unknown) {
@@ -57,8 +55,7 @@ export default function ProfilePage() {
   const isDirty =
     initialData !== null &&
     (candidateName.trim() !== (initialData.candidate_name || "").trim() ||
-      availability.trim() !== (initialData.availability || "").trim() ||
-      ukAuth !== (initialData.uk_work_authorization || ""));
+      availability.trim() !== (initialData.availability || "").trim());
 
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {
@@ -69,12 +66,6 @@ export default function ProfilePage() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
-
-  const confirmedCount = [
-    Boolean(candidateName.trim()),
-    Boolean(availability.trim()),
-    Boolean(ukAuth),
-  ].filter(Boolean).length;
 
   function validate(): boolean {
     const errors: { candidateName?: string; availability?: string } = {};
@@ -106,7 +97,6 @@ export default function ProfilePage() {
     const payload: ApplicationDetails = {
       candidate_name: candidateName.trim() || null,
       availability: availability.trim() || null,
-      uk_work_authorization: ukAuth || null,
     };
 
     try {
@@ -114,8 +104,7 @@ export default function ProfilePage() {
       setInitialData(saved);
       setCandidateName(saved.candidate_name || "");
       setAvailability(saved.availability || "");
-      setUkAuth(saved.uk_work_authorization || "");
-      setSuccessNotice("Saved. Future drafts will automatically anchor to these details.");
+      setSuccessNotice("Saved. New application drafts will use these details.");
       setFieldErrors({});
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : "Failed to save application details.");
@@ -127,27 +116,13 @@ export default function ProfilePage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="YOUR PROFILE"
-        title="Details you confirm once, reused everywhere."
-        description="These verified details auto-populate screening forms across all job applications. GetSwydd never fabricates, exaggerates, or guesses answers."
+        title="Profile"
+        description="Save your name and availability for application drafts. Answer work authorization questions when an employer asks."
       />
 
-      {/* Completeness Indicator */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-hairline pb-4">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="eyebrow">COMPLETENESS</span>
-          <span className="font-mono font-semibold text-ink">
-            {confirmedCount} of 3 details confirmed
-          </span>
-        </div>
-
-        {isDirty && (
-          <div className="text-xs font-medium text-ochre flex items-center gap-1.5" role="status">
-            <span className="w-1.5 h-1.5 rounded-full bg-ochre shrink-0" />
-            Unsaved changes. Press “Save details” to persist.
-          </div>
-        )}
-      </div>
+      {isDirty && (
+        <p className="mb-4 text-xs font-medium text-ochre" role="status">Unsaved changes</p>
+      )}
 
       {loading && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,21rem)] lg:gap-6">
@@ -197,8 +172,6 @@ export default function ProfilePage() {
                 setAvailability(val);
                 if (fieldErrors.availability) validate();
               }}
-              ukAuth={ukAuth}
-              onUkAuthChange={setUkAuth}
               isDirty={isDirty}
               saving={saving}
               saveError={saveError}
@@ -208,7 +181,6 @@ export default function ProfilePage() {
                 if (initialData) {
                   setCandidateName(initialData.candidate_name || "");
                   setAvailability(initialData.availability || "");
-                  setUkAuth(initialData.uk_work_authorization || "");
                   setFieldErrors({});
                   setSaveError(null);
                 }

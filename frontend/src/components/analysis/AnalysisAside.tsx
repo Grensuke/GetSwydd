@@ -50,9 +50,9 @@ export function AnalysisAside({ job }: { job: Job }) {
         ) : (
           <div className="space-y-3">
             <div className="p-3 bg-paper rounded-md border border-hairline text-xs space-y-1.5">
-              <span className="eyebrow block">ASSISTED MODE</span>
+              <span className="eyebrow block">REVIEW REQUIRED</span>
               <p className="text-ink-soft leading-relaxed">
-                GetSwydd prepares and reviews your verified answers. You complete the final submission directly on the employer&apos;s site.
+                Review your answers before sending through GetSwydd where available or continuing on the employer&apos;s site.
               </p>
             </div>
 

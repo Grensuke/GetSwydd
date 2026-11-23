@@ -32,6 +32,7 @@ def test_jobs_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 2
+    assert all("India" in job["location"] for job in data["jobs"])
     assert len(data["jobs"]) == 2
 
     titles = [job["title"] for job in data["jobs"]]

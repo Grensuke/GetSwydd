@@ -320,6 +320,7 @@ def _search(state: DiscoveryState) -> DiscoveryState:
         DiscoveryJob(
             job_id=job.id, title=job.title, company=job.company, location=job.location,
             source=job.source, apply_url=job.apply_url, application_deadline=job.application_deadline,
+            email_application_available=job.email_application_available,
             match=job.match, applicant_location_check=locations[job.id],
         )
         for job in sorted(matched, key=rank)[:filters.limit]
