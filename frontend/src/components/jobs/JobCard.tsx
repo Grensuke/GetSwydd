@@ -8,6 +8,8 @@ import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { JobMatchSummary } from "./JobMatchSummary";
 import { StartApplication } from "@/components/applications/StartApplication";
+import { useSavedJobs } from "@/lib/hooks/useSavedJobs";
+import { Bookmark } from "lucide-react";
 
 export interface JobCardProps {
   job: Job;
@@ -32,6 +34,8 @@ function stripHtml(text: string): string {
 export function JobCard({ job, className }: JobCardProps) {
   const [showFullDesc, setShowFullDesc] = useState(false);
   const descId = useId();
+  const { isSaved, toggleSave } = useSavedJobs();
+  const saved = isSaved(job.id);
 
   const deadlineInfo = job.application_deadline ? formatDeadline(job.application_deadline) : null;
   const compText = job.compensation && job.compensation.length > 0 ? formatCompensation(job.compensation) : null;
@@ -65,6 +69,20 @@ export function JobCard({ job, className }: JobCardProps) {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => toggleSave(job)}
+            aria-label={saved ? "Remove from saved jobs" : "Save job for later"}
+            title={saved ? "Saved" : "Save for later"}
+            className={cn(
+              "flex size-9 items-center justify-center rounded-md border transition-colors",
+              saved
+                ? "border-ochre bg-ochre-tint text-ochre"
+                : "border-hairline bg-paper text-sage-deep hover:border-moss/40 hover:text-ink"
+            )}
+          >
+            <Bookmark size={15} className={saved ? "fill-current" : undefined} aria-hidden="true" />
+          </button>
           <Button href={analysisUrl} variant="quiet" size="sm" className="min-h-9 px-2 !text-xs">
             View analysis
           </Button>

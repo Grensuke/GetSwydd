@@ -42,8 +42,30 @@ export interface SubmissionReceipt {
   selected_resume: string;
   approved_updated_at: string;
   submitted_at: string;
-  destination: "local_test_employer";
+  destination: "local_test_employer" | "gmail";
   status: "submitted";
+}
+
+export interface ApplicationEmail {
+  recipient: string;
+  instruction: string;
+  subject: string;
+  body: string;
+}
+
+export interface GmailConnection {
+  configured: boolean;
+  email: string | null;
+}
+
+export interface GmailAuthorization {
+  authorization_url: string;
+}
+
+export interface EmailApproval {
+  approved: boolean;
+  draft_updated_at: string;
+  sender: string;
 }
 
 export interface ApplicationDraft {
@@ -61,7 +83,9 @@ export interface ApplicationDraft {
   reported_submitted_at?: string | null;
   greenhouse_form_hash?: string | null;
   employer_submission_status?: "sending" | "uncertain" | "submitted" | null;
+  employer_submission_source?: "greenhouse" | "gmail" | null;
   employer_submitted_at?: string | null;
+  application_email?: ApplicationEmail | null;
   screening_questions: ScreeningQuestionAnswer[];
   missing_required_questions: string[];
   ready_for_review: boolean;
@@ -78,8 +102,8 @@ export interface AssistedApplication {
   selected_resume: string;
   apply_url: string;
   status: "draft" | "submitted" | "unconfirmed";
-  status_source: "getswydd" | "user_reported" | "greenhouse";
-  reported_submitted_at: string | null;
+  status_source?: "getswydd" | "user_reported" | "greenhouse" | "gmail" | null;
+  reported_submitted_at?: string | null;
   employer_submitted_at?: string | null;
-  updated_at: string;
+  updated_at?: string;
 }

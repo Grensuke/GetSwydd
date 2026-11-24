@@ -3,6 +3,9 @@ import type {
   ApplicationDraft,
   AssistedApplication,
   DraftCreateRequest,
+  EmailApproval,
+  GmailAuthorization,
+  GmailConnection,
   ReportSubmissionRequest,
   SubmissionReceipt,
   SubmitDraftRequest,
@@ -130,4 +133,51 @@ export function markReportedSubmission(
     }
   );
 }
+
+/**
+ * GET /api/v1/gmail
+ * Check if Google OAuth is configured and get connected candidate Gmail address.
+ */
+export function getGmailConnection(signal?: AbortSignal): Promise<GmailConnection> {
+  return requestJson<GmailConnection>("/api/v1/gmail", { signal });
+}
+
+/**
+ * DELETE /api/v1/gmail
+ * Disconnect candidate Gmail session.
+ */
+export function disconnectGmail(): Promise<void> {
+  return requestJson<void>("/api/v1/gmail", { method: "DELETE" });
+}
+
+/**
+ * GET /api/v1/applications/drafts/{draft_id}/gmail-authorization
+ * Retrieve Google OAuth authorization URL for sending application email.
+ */
+export function getGmailAuthorization(draftId: string, signal?: AbortSignal): Promise<GmailAuthorization> {
+  return requestJson<GmailAuthorization>(
+    `/api/v1/applications/drafts/${encodeURIComponent(draftId)}/gmail-authorization`,
+    { signal }
+  );
+}
+
+/**
+ * POST /api/v1/applications/drafts/{draft_id}/email-submission
+ * Submit application package directly to employer via Gmail API after explicit approval.
+ */
+export function submitByEmail(
+  draftId: string,
+  payload: EmailApproval,
+  signal?: AbortSignal
+): Promise<ApplicationDraft> {
+  return requestJson<ApplicationDraft>(
+    `/api/v1/applications/drafts/${encodeURIComponent(draftId)}/email-submission`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      signal,
+    }
+  );
+}
+
 

@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
-import type { JobMatch } from "@/lib/api/types";
+import React, { useState } from "react";
+import type { JobMatch, ResumeFacts } from "@/lib/api/types";
 import { Panel } from "@/components/ui";
+import { listResumes, getResume, confirmResumeFacts } from "@/lib/api/resumes";
+import { Plus, Check, Loader2 } from "lucide-react";
 
-export function SkillsCoverageSection({ match }: { match: JobMatch | null | undefined }) {
+export function SkillsCoverageSection({
+  match,
+  onSkillAdded,
+}: {
+  match: JobMatch | null | undefined;
+  onSkillAdded?: () => void;
+}) {
+  const [addingSkill, setAddingSkill] = useState<string | null>(null);
+  const [addedSkills, setAddedSkills] = useState<Set<string>>(new Set());
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
   if (!match) return null;
 
   const matchRatio = match.total_skills > 0 ? match.matched_skills / match.total_skills : 0;
@@ -15,6 +27,53 @@ export function SkillsCoverageSection({ match }: { match: JobMatch | null | unde
   const unevidenced = match.requirements.filter((r) => r.status !== "evidence_found");
 
   const recommendation = match.recommended_resume;
+
+  async function handleAddSkill(skillLabel: string) {
+    if (addingSkill) return;
+    setAddingSkill(skillLabel);
+    setFeedbackError(null);
+
+    try {
+      const resumes = await listResumes();
+      if (!resumes || resumes.length === 0) {
+        setFeedbackError("Upload a resume first before adding skills.");
+        return;
+      }
+
+      // Pick the recommended resume or the first available
+      const targetResumeId = recommendation?.resume_id || resumes[0].id;
+      const detail = await getResume(targetResumeId);
+      if (!detail) {
+        setFeedbackError("Could not retrieve resume details.");
+        return;
+      }
+
+      const currentFacts: ResumeFacts = detail.confirmed_facts ?? detail.suggested_facts;
+      const existingSkills = currentFacts.skills ?? [];
+
+      // Check if skill is already present
+      if (!existingSkills.some((s) => s.toLowerCase() === skillLabel.toLowerCase())) {
+        const updatedFacts: ResumeFacts = {
+          ...currentFacts,
+          skills: [...existingSkills, skillLabel],
+        };
+
+        await confirmResumeFacts(
+          detail,
+          updatedFacts,
+          undefined,
+          detail.confirmed_contact ?? detail.suggested_contact
+        );
+      }
+
+      setAddedSkills((prev) => new Set(prev).add(skillLabel));
+      onSkillAdded?.();
+    } catch (err: unknown) {
+      setFeedbackError(err instanceof Error ? err.message : "Failed to add skill.");
+    } finally {
+      setAddingSkill(null);
+    }
+  }
 
   return (
     <Panel eyebrow="SKILLS COVERAGE" title="Evidence analysis" className="space-y-6">
@@ -40,6 +99,12 @@ export function SkillsCoverageSection({ match }: { match: JobMatch | null | unde
         </p>
       </div>
 
+      {feedbackError && (
+        <div className="rounded-md border border-brick/30 bg-brick-tint/30 p-2 text-xs text-brick">
+          {feedbackError}
+        </div>
+      )}
+
       {/* Two columns: Matched vs Not Evidenced Yet */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
         <div className="space-y-2">
@@ -63,21 +128,54 @@ export function SkillsCoverageSection({ match }: { match: JobMatch | null | unde
           {unevidenced.length === 0 ? (
             <p className="text-xs text-sage-deep italic">All listed skills have verified evidence.</p>
           ) : (
-            <ul className="space-y-1.5 text-xs text-ink-soft">
-              {unevidenced.map((r) => (
-                <li key={r.label} className="flex items-start gap-1.5">
-                  <span className="text-sage-deep select-none">&mdash;</span>
-                  <span>{r.label}</span>
-                </li>
-              ))}
+            <ul className="space-y-2 text-xs text-ink-soft">
+              {unevidenced.map((r) => {
+                const isAdded = addedSkills.has(r.label);
+                const isLoading = addingSkill === r.label;
+
+                return (
+                  <li
+                    key={r.label}
+                    className="flex items-center justify-between gap-2 rounded-md border border-hairline/60 bg-paper p-1.5 transition-colors hover:border-hairline"
+                  >
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <span className="text-sage-deep select-none">&mdash;</span>
+                      <span className="truncate font-medium text-ink">{r.label}</span>
+                    </div>
+
+                    {isAdded ? (
+                      <span className="inline-flex items-center gap-1 shrink-0 rounded px-2 py-0.5 text-[11px] font-medium text-moss bg-moss-tint">
+                        <Check size={11} aria-hidden="true" />
+                        Added
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => handleAddSkill(r.label)}
+                        className="inline-flex items-center gap-1 shrink-0 rounded border border-moss/30 bg-moss-tint/40 px-2 py-0.5 text-[11px] font-medium text-moss hover:bg-moss-tint transition-colors disabled:opacity-50"
+                        title={`Confirm ${r.label} in your resume skills`}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 size={10} className="animate-spin" aria-hidden="true" />
+                            <span>Adding…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={10} aria-hidden="true" />
+                            <span>+ Add skill</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           <p className="text-[11px] text-sage-deep pt-1">
-            No confirmed evidence in your resumes. If you have this skill, you can add it by confirming it in a{" "}
-            <Link href="/resumes" className="underline text-ink hover:text-ink-soft font-medium">
-              resume review
-            </Link>
-            .
+            Click <strong>+ Add skill</strong> to confirm knowledge to your profile and re-calculate evidence in real time.
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { type ConfirmedStage, CONFIRMED_STAGE_MAP } from "./status";
 
 export interface TrackedApplication {
   key: string;
-  kind: "assisted" | "test";
+  kind: "assisted" | "test" | "email";
   draftId: string;
   jobId?: string;
   jobTitle: string;
@@ -22,14 +22,17 @@ export interface TrackedApplication {
 }
 
 export function normalizeAssisted(app: AssistedApplication): TrackedApplication {
-  const confirmedStage: ConfirmedStage = app.status_source === "greenhouse"
-    ? app.status === "submitted" ? "submitted_direct" : "submission_pending"
-    : app.status === "submitted" && app.status_source === "user_reported" ? "submitted_reported" : "preparing";
+  const confirmedStage: ConfirmedStage =
+    app.status_source === "gmail"
+      ? "submitted_email"
+      : app.status_source === "greenhouse"
+      ? app.status === "submitted" ? "submitted_direct" : "submission_pending"
+      : app.status === "submitted" && app.status_source === "user_reported" ? "submitted_reported" : "preparing";
   const stageInfo = CONFIRMED_STAGE_MAP[confirmedStage];
 
   return {
     key: `assisted:${app.draft_id}`,
-    kind: "assisted",
+    kind: app.status_source === "gmail" ? "email" : "assisted",
     draftId: app.draft_id,
     jobId: app.job_id,
     jobTitle: app.job_title || "Untitled Role",

@@ -8,6 +8,7 @@ import { Badge, Button, Checkbox, InlineNotice, Panel } from "@/components/ui";
 import { AssistedActionSection } from "./AssistedActionSection";
 import { BrowserApplicationDemo } from "./BrowserApplicationDemo";
 import { SubmissionReceiptCard } from "./SubmissionReceiptCard";
+import { GmailApplicationModal } from "./GmailApplicationModal";
 
 export interface ReviewPanelProps {
   draft: ApplicationDraft;
@@ -186,7 +187,18 @@ export function ReviewPanel({
             </div>
           )}
 
-          {isAssisted && !draft.greenhouse_form_hash && manualApplication}
+          {isAssisted && !draft.greenhouse_form_hash && (
+            <div className="space-y-4">
+              {draft.application_email && (
+                <GmailApplicationModal
+                  draft={draft}
+                  canApprove={canApprove}
+                  onDraftUpdated={onDraftUpdated}
+                />
+              )}
+              {manualApplication}
+            </div>
+          )}
           {isAssisted && draft.greenhouse_form_hash && (
             employerStatus === "submitted" ? (
               <InlineNotice variant="info" className="border-l-moss bg-moss-tint/40">

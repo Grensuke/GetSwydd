@@ -4,6 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui";
 import { RefreshButton } from "./RefreshButton";
 import { SortControl } from "./SortControl";
+import { Bookmark } from "lucide-react";
 
 export interface DiscoveryToolbarProps {
   page: number;
@@ -15,6 +16,9 @@ export interface DiscoveryToolbarProps {
   sort: "default" | "match";
   hasProfile: boolean;
   lastRefreshedAt?: string | null;
+  savedCount?: number;
+  showSavedOnly?: boolean;
+  onToggleSavedOnly?: () => void;
   onSortChange: (sort: "default" | "match") => void;
   onToggleMobileFilters: () => void;
   onOpenPrefs: () => void;
@@ -31,6 +35,9 @@ export function DiscoveryToolbar({
   sort,
   hasProfile,
   lastRefreshedAt,
+  savedCount = 0,
+  showSavedOnly = false,
+  onToggleSavedOnly,
   onSortChange,
   onToggleMobileFilters,
   onOpenPrefs,
@@ -39,34 +46,49 @@ export function DiscoveryToolbar({
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
   const countLabel =
-    status === "loading" && !hasResponse
+    showSavedOnly
+      ? `${savedCount} saved ${savedCount === 1 ? "opportunity" : "opportunities"}`
+      : status === "loading" && !hasResponse
       ? "Scanning..."
       : start > end
       ? `${total} opportunit${total === 1 ? "y" : "ies"}`
       : `${start} to ${end} of ${total}`;
 
-  const liveAnnouncement = `${total} opportunit${total === 1 ? "y" : "ies"}`;
+  const liveAnnouncement = showSavedOnly
+    ? `${savedCount} saved jobs`
+    : `${total} opportunit${total === 1 ? "y" : "ies"}`;
 
   return (
     <div className="mb-4 flex flex-col justify-between gap-3 border-b border-hairline pb-3 xl:flex-row xl:items-start">
       {/* Result Count and Live Region */}
       <div className="flex min-h-9 flex-wrap items-center gap-3">
-        <span className="eyebrow">CATALOG</span>
+        <span className="eyebrow">{showSavedOnly ? "SAVED" : "CATALOG"}</span>
         <span className="font-mono text-xs font-semibold text-ink">
           {countLabel}
         </span>
         <span className="sr-only" aria-live="polite">
           {liveAnnouncement}
         </span>
-        {activeFilterCount > 0 && (
+        {!showSavedOnly && activeFilterCount > 0 && (
           <span className="text-[11px] text-sage-deep">
             ({activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} active)
           </span>
         )}
       </div>
 
-      {/* Toolbar Actions: Sort, Mobile Filters, Preferences, Refresh */}
+      {/* Toolbar Actions: Saved Jobs, Sort, Mobile Filters, Preferences, Refresh */}
       <div className="flex flex-wrap items-start gap-2">
+        {onToggleSavedOnly && (
+          <Button
+            variant={showSavedOnly ? "secondary" : "quiet"}
+            size="sm"
+            className="min-h-9 !text-xs gap-1.5"
+            onClick={onToggleSavedOnly}
+          >
+            <Bookmark size={13} className={showSavedOnly ? "fill-current" : undefined} aria-hidden="true" />
+            <span>Saved ({savedCount})</span>
+          </Button>
+        )}
         <SortControl
           value={sort}
           onChange={onSortChange}

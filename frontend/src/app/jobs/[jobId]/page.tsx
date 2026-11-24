@@ -131,7 +131,7 @@ export default function JobAnalysisPage({
             <EligibilitySection match={job.match} />
 
             {/* 3. Skills Coverage & Best-fit resume */}
-            <SkillsCoverageSection match={job.match} />
+            <SkillsCoverageSection match={job.match} onSkillAdded={reload} />
 
             {/* 4. AI Semantic Comparison */}
             <SemanticSection

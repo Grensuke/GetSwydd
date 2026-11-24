@@ -36,17 +36,23 @@ Open [GetSwydd](http://localhost:3000). The frontend defaults to `http://127.0.0
 
 ## Review a resume and prepare an application
 
-1. Open **Resumes** and upload a text-based PDF or DOCX up to 5 MB. Review the suggested skills, education, experience, projects, certifications, and contact details. The extractor reads supported PDF and DOCX link targets, so a linked phone number, email, LinkedIn profile, or GitHub profile can appear even when the visible text is just a label.
+1. Open **Resumes** and upload a text-based PDF or DOCX up to 5 MB. Review the suggested skills with the **interactive skill tag editor** (add tags, delete with `×`, type with `Enter` or `,`, or toggle raw text), inspect **structured project card previews** with parsed tech stack badges, and verify education, experience, certifications, and contact details. The extractor reads supported PDF and DOCX link targets, so a linked phone number, email, LinkedIn profile, or GitHub profile can appear even when the visible text is just a label.
 2. Confirm the facts you want to use. The **Confirmed profile** groups facts by category and shows their source resumes. Select **Remove** to delete a resume and facts unique to it. Saved drafts keep their snapshots.
 3. In **Profile**, save your candidate name and optional availability. Answer work authorization questions on individual drafts when an employer asks.
-4. Use **Find jobs with this resume**, **Search with AI**, or the catalog. Open the job analysis or choose **Prepare application**. Select a reviewed resume, save any missing answers, and check the draft before continuing.
+4. Use **Find jobs with this resume**, **Search with AI**, or the catalog. Bookmark roles to review later using the **Bookmark / Saved Jobs** system. Open the job analysis, use **+ Add skill** to immediately append missing required skills to your primary resume, or choose **Prepare application**. Select a reviewed resume, save any missing answers, and check the draft before continuing.
 
 | Workflow | What happens after review |
 | --- | --- |
 | Assisted application | Open the official employer form, use the prepared answers and resume, and report completion in GetSwydd when you have submitted. |
 | Authorized Greenhouse submission | **Approve and apply** sends the saved version and selected resume to a supported, opted-in Greenhouse board. It requires an employer-issued board key. |
 | Local test submission | Submit the sample draft to the test inbox, with an optional Chromium preview of the mock form. |
-| Gmail API integration | The backend can send a reviewed PDF or DOCX to the recipient explicitly named in a supported listing after OAuth and approval. Gmail controls and source-specific tracker labels are pending in the frontend. |
+| Gmail API integration | Connect Gmail via OAuth directly in the review modal, preview the drafted email and resume attachment, and dispatch with explicit approval. Verified in the tracker as **Sent via Gmail**. |
+
+### Application tracker and search analytics
+
+Open **Applications** to manage your search pipeline in either **Ledger** table or **Board** view:
+- **Kanban Drag-and-Drop**: Drag application cards across stages (`Saved`, `Preparing`, `Submitted`, `Assessment`, `Interview`, `Offer`, `Rejected`) with visual drag handles, dropzones, and full keyboard accessibility.
+- **Search Funnel & Application Analytics**: Track total active opportunities, submission channels (Greenhouse, Gmail, Direct), active pipeline stages, and overall interview conversion rate.
 
 ### Try the browser application demo
 

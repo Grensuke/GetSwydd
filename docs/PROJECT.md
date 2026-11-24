@@ -23,9 +23,9 @@ All features and workflows in GetSwydd must adhere strictly to three foundationa
 
 A candidate can confirm a resume, find a suitable job from configured Greenhouse, Lever, and Ashby feeds, and prepare a draft from either the catalog or AI search. The India-first catalog includes explicitly worldwide remote roles. Groq or OpenAI interprets the natural-language query, while the backend applies filters and ranks actual postings using confirmed facts. The [discovery contract](api-contract.md#12-job-discovery-agent) describes the search and its clarification states.
 
-The [application guide](../README.md#review-a-resume-and-prepare-an-application) covers the assisted employer-site workflow, local test inbox, Chromium demo, and approval-gated Greenhouse integration. Gmail sending is available at the API when a supported listing explicitly requests email applications. The Gmail connect, send, and tracker UI still needs wiring.
+The [application guide](../README.md#review-a-resume-and-prepare-an-application) covers the assisted employer-site workflow, local test inbox, Chromium demo, approval-gated Greenhouse integration, and the direct Gmail application review flow. For listings with email application instructions, candidates can connect Gmail via OAuth, review drafted message text and attached resume, and dispatch with explicit approval.
 
-The tracker provides Ledger and Board views. It distinguishes test inbox receipts, user-reported submissions, and Greenhouse outcomes. Interview, assessment, offer, rejection, and saved statuses are personal tracking notes stored in the browser. Gmail inbox monitoring remains a separate roadmap item.
+The tracker provides Ledger and Board views. It distinguishes test inbox receipts, user-reported submissions, Greenhouse outcomes, and Gmail deliveries (`Sent via Gmail`). The Kanban board supports drag-and-drop stage movement across `Saved`, `Preparing`, `Submitted`, `Assessment`, `Interview`, `Offer`, and `Rejected` with live application analytics and funnel conversion metrics. Personal stages and notes live in browser storage. Gmail inbox monitoring remains a separate roadmap item.
 
 ## Product Roadmap
 
@@ -68,5 +68,10 @@ The tracker provides Ledger and Board views. It distinguishes test inbox receipt
 - [x] Submit a reviewed draft to supported Greenhouse boards with employer authorization and explicit candidate approval.
 - [x] Provide Ledger and Kanban Board tracker views with personal stages and notes.
 - [x] Add approval-gated Gmail sending to the backend for listings with supported email instructions.
-- [ ] Connect the Gmail approval flow and Gmail-specific tracker statuses to the frontend.
+- [x] Connect the Gmail approval flow and Gmail-specific tracker statuses to the frontend.
+- [x] Interactive Skill Tags & Project Card Previews on /resumes.
+- [x] 1-Click Skill Add from Job Analysis (/jobs/[jobId]) with live resume re-sync.
+- [x] Bookmark / Saved Jobs system with instant multi-component reactive sync.
+- [x] Drag-and-drop Kanban board with visual dropzones and keyboard accessibility.
+- [x] Application Analytics and 6-stage recruitment funnel strip.
 - [ ] Explore Gmail inbox tracking for hiring updates with separate user permission.

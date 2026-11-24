@@ -17,6 +17,7 @@ import { Badge, EmptyState, SourceTag } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { MoveStageMenu } from "./MoveStageMenu";
 import { PersonalStatusEditor } from "./PersonalStatusEditor";
+import { GripVertical } from "lucide-react";
 
 export interface TrackerBoardProps {
   applications: TrackedApplication[];
@@ -35,27 +36,21 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
   const personalStatuses = useAllPersonalStatuses();
   const [editingApp, setEditingApp] = useState<TrackedApplication | null>(null);
   const [announcement, setAnnouncement] = useState<string>("");
+  const [draggedAppKey, setDraggedAppKey] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<BoardColumnKey | null>(null);
 
-  // Determine if any application has a personal "saved" stage
-  const hasSavedStage = useMemo(() => {
-    return Object.values(personalStatuses).some((p) => p.stage === "saved");
-  }, [personalStatuses]);
-
-  // Define columns in exact required order
+  // Define columns in standard recruiting pipeline order
   const columns: BoardColumnDef[] = useMemo(() => {
-    const list: BoardColumnDef[] = [
+    return [
+      { key: "saved", label: "Saved", kind: "personal", description: "Bookmarked roles" },
       { key: "preparing", label: "Preparing", kind: "confirmed", description: "In preparation" },
-      { key: "submitted_reported", label: "Submitted", kind: "confirmed", description: "Employer-confirmed and user-reported" },
+      { key: "submitted_reported", label: "Submitted", kind: "confirmed", description: "Employer-confirmed & sent" },
       { key: "assessment", label: "Assessment", kind: "personal", description: "Tests & assignments" },
       { key: "interview", label: "Interview", kind: "personal", description: "Conversations & rounds" },
       { key: "offer", label: "Offer", kind: "personal", description: "Offers received" },
       { key: "rejected", label: "Rejected", kind: "personal", description: "Closed / unfulfilled" },
     ];
-    if (hasSavedStage) {
-      list.push({ key: "saved", label: "Saved", kind: "personal", description: "Bookmarked roles" });
-    }
-    return list;
-  }, [hasSavedStage]);
+  }, []);
 
   // Group applications into board columns (excluding test submissions, which have their own lane)
   const { columnBuckets, testSubmissions } = useMemo(() => {
@@ -74,8 +69,12 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
       if (personal?.stage && buckets[personal.stage]) {
         buckets[personal.stage].push(app);
       } else {
-        const stage = app.confirmedStage === "submitted_direct" ? "submitted_reported"
-          : app.confirmedStage === "submission_pending" ? "preparing" : app.confirmedStage;
+        const stage =
+          app.confirmedStage === "submitted_direct" || app.confirmedStage === "submitted_email"
+            ? "submitted_reported"
+            : app.confirmedStage === "submission_pending"
+            ? "preparing"
+            : app.confirmedStage;
         buckets[stage]?.push(app);
       }
     });
@@ -91,8 +90,52 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
       relevantDate: prev?.relevantDate,
     });
     const targetLabel = nextStage ? PERSONAL_STAGE_MAP[nextStage]?.label : "Confirmed stage";
-    const msg = `Moved ${app.company}, ${app.jobTitle} to ${targetLabel} (your note)`;
+    const msg = `Moved ${app.company}, ${app.jobTitle} to ${targetLabel}`;
     setAnnouncement(msg);
+  }
+
+  function handleDragStart(e: React.DragEvent<HTMLElement>, appKey: string) {
+    e.dataTransfer.setData("text/plain", appKey);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggedAppKey(appKey);
+  }
+
+  function handleDragEnd() {
+    setDraggedAppKey(null);
+    setDragOverColumn(null);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>, colKey: BoardColumnKey) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverColumn !== colKey) {
+      setDragOverColumn(colKey);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>, colKey: BoardColumnKey) {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (dragOverColumn === colKey) {
+      setDragOverColumn(null);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, col: BoardColumnDef) {
+    e.preventDefault();
+    const appKey = e.dataTransfer.getData("text/plain") || draggedAppKey;
+    setDraggedAppKey(null);
+    setDragOverColumn(null);
+
+    if (!appKey) return;
+    const targetApp = applications.find((a) => a.key === appKey);
+    if (!targetApp) return;
+
+    if (col.kind === "personal") {
+      handleMove(targetApp, col.key as PersonalStage);
+    } else {
+      // Revert to confirmed status by clearing personal override
+      handleMove(targetApp, null);
+    }
   }
 
   if (applications.length === 0) {
@@ -121,11 +164,19 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
       >
         {columns.map((col) => {
           const cards = columnBuckets[col.key] || [];
+          const isOverThisCol = dragOverColumn === col.key;
 
           return (
             <div
               key={col.key}
-              className="flex min-w-0 snap-start flex-col gap-3 rounded-xl border border-hairline bg-paper-raised p-3"
+              onDragOver={(e) => handleDragOver(e, col.key)}
+              onDragLeave={(e) => handleDragLeave(e, col.key)}
+              onDrop={(e) => handleDrop(e, col)}
+              className={`flex min-w-0 snap-start flex-col gap-3 rounded-xl border p-3 transition-all duration-150 ${
+                isOverThisCol
+                  ? "border-moss bg-moss-tint/30 ring-2 ring-moss/30 shadow-md"
+                  : "border-hairline bg-paper-raised"
+              }`}
             >
               {/* Column Header */}
               <div className="flex items-start justify-between gap-2 border-b border-hairline pb-2">
@@ -140,7 +191,7 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
 
               {/* Cards Container */}
               <div className="space-y-2.5 flex-1 min-h-[140px]">
-                {cards.length === 0 ? (
+                {cards.length === 0 && !isOverThisCol ? (
                   <div className="h-24 flex items-center justify-center text-[11px] text-sage-deep italic border border-dashed border-hairline rounded bg-paper/30">
                     No roles in this stage
                   </div>
@@ -149,13 +200,26 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
                     const personal = personalStatuses[app.key];
                     const confirmedInfo = CONFIRMED_STAGE_MAP[app.confirmedStage];
                     const isPersonalColumn = col.kind === "personal";
+                    const isBeingDragged = draggedAppKey === app.key;
 
                     return (
                       <article
                         key={app.key}
-                        className="p-3 rounded-md border border-hairline bg-paper space-y-2 text-xs shadow-[0_1px_0_rgba(43,47,39,0.03)] hover:border-hairline-strong transition-colors"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, app.key)}
+                        onDragEnd={handleDragEnd}
+                        className={`p-3 rounded-md border bg-paper space-y-2 text-xs shadow-[0_1px_0_rgba(43,47,39,0.03)] transition-all cursor-grab active:cursor-grabbing ${
+                          isBeingDragged
+                            ? "opacity-30 border-dashed border-moss ring-1 ring-moss/40"
+                            : "border-hairline hover:border-hairline-strong"
+                        }`}
                       >
-                        <span className="block wrap-anywhere font-medium text-sage-deep">{app.company}</span>
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="block wrap-anywhere font-medium text-sage-deep">{app.company}</span>
+                          <span title="Drag card to move between stages" className="text-sage-deep/50 hover:text-ink shrink-0 pt-0.5">
+                            <GripVertical size={13} aria-hidden="true" />
+                          </span>
+                        </div>
 
                         <Link
                           href={app.links.draft}
@@ -206,6 +270,13 @@ export function TrackerBoard({ applications }: TrackerBoardProps) {
                       </article>
                     );
                   })
+                )}
+
+                {/* Drop placeholder */}
+                {isOverThisCol && (
+                  <div className="rounded-md border-2 border-dashed border-moss/60 bg-moss-tint/40 p-2 text-center text-xs font-medium text-moss animate-pulse">
+                    Drop to move into {col.label}
+                  </div>
                 )}
               </div>
             </div>

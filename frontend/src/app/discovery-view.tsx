@@ -17,6 +17,8 @@ import { DiscoveryToolbar } from "@/components/discovery/DiscoveryToolbar";
 import { AgentDiscovery } from "@/components/discovery/AgentDiscovery";
 import { ResultsRegion } from "@/components/discovery/ResultsRegion";
 import { MobileFilterSheet } from "@/components/discovery/MobileFilterSheet";
+import { JobCard } from "@/components/jobs/JobCard";
+import { useSavedJobs } from "@/lib/hooks/useSavedJobs";
 
 export function DiscoveryView() {
   const {
@@ -34,6 +36,8 @@ export function DiscoveryView() {
 
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [mobileFilters, setMobileFilters] = useState(false);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const { savedJobs, savedCount } = useSavedJobs();
 
   const apiParams = useMemo(() => toApiParams(params), [params]);
   const fetchJobs = useCallback(
@@ -128,6 +132,9 @@ export function DiscoveryView() {
           sort={params.sort}
           hasProfile={hasProfile}
           lastRefreshedAt={lastRefreshedAt}
+          savedCount={savedCount}
+          showSavedOnly={showSavedOnly}
+          onToggleSavedOnly={() => setShowSavedOnly((s) => !s)}
           onSortChange={(s) => setParam("sort", s)}
           onToggleMobileFilters={() => setMobileFilters((p) => !p)}
           onOpenPrefs={() => setPrefsOpen(true)}
@@ -170,23 +177,40 @@ export function DiscoveryView() {
           </aside>
 
           <div id="catalog-results" role="tabpanel" aria-labelledby={`source-tab-${params.source}`} className="min-w-0">
-            <ResultsRegion
-              status={status}
-              response={response}
-              jobs={jobs}
-              total={total}
-              error={error}
-              page={params.page}
-              pageSize={params.pageSize}
-              activeFilterCount={activeFilterCount}
-              source={params.source}
-              market={params.market}
-              isRefetching={isRefetching}
-              onRetry={reload}
-              onClearFilters={resetFilters}
-              onPageChange={setPage}
-              onPageSizeChange={(sz) => setParam("pageSize", sz)}
-            />
+            {showSavedOnly ? (
+              savedJobs.length === 0 ? (
+                <Panel className="p-8 text-center space-y-2">
+                  <p className="font-display text-lg text-ink font-medium">No saved opportunities yet</p>
+                  <p className="text-xs text-sage-deep">
+                    Click the bookmark icon on any job card to save it for quick reference later.
+                  </p>
+                </Panel>
+              ) : (
+                <div className="space-y-4">
+                  {savedJobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </div>
+              )
+            ) : (
+              <ResultsRegion
+                status={status}
+                response={response}
+                jobs={jobs}
+                total={total}
+                error={error}
+                page={params.page}
+                pageSize={params.pageSize}
+                activeFilterCount={activeFilterCount}
+                source={params.source}
+                market={params.market}
+                isRefetching={isRefetching}
+                onRetry={reload}
+                onClearFilters={resetFilters}
+                onPageChange={setPage}
+                onPageSizeChange={(sz) => setParam("pageSize", sz)}
+              />
+            )}
           </div>
         </div>
       </section>

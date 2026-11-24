@@ -4,26 +4,48 @@ import React from "react";
 import type { Job } from "@/lib/api/types";
 import { Badge, Divider } from "@/components/ui";
 import { formatCompensation, formatDeadline, formatRelativeDate, titleCaseEnum } from "@/lib/format";
+import { useSavedJobs } from "@/lib/hooks/useSavedJobs";
+import { Bookmark } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 export function AnalysisHeader({ job }: { job: Job }) {
   const deadlineInfo = job.application_deadline ? formatDeadline(job.application_deadline) : null;
   const compText = job.compensation && job.compensation.length > 0 ? formatCompensation(job.compensation) : null;
+  const { isSaved, toggleSave } = useSavedJobs();
+  const saved = isSaved(job.id);
 
   return (
     <header className="space-y-4">
-      <div>
-        <span className="eyebrow block text-sage-deep mb-1">{job.company}</span>
-        <h1 className="font-display text-3xl sm:text-4xl font-medium text-ink tracking-tight">
-          {job.title}
-        </h1>
-        <p className="text-sm text-ink-soft mt-1.5 flex flex-wrap items-center gap-2">
-          <span>{job.location}</span>
-          {job.additional_locations && job.additional_locations.length > 0 && (
-            <span className="text-sage-deep">
-              (+{job.additional_locations.join(", ")})
-            </span>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div>
+          <span className="eyebrow block text-sage-deep mb-1">{job.company}</span>
+          <h1 className="font-display text-3xl sm:text-4xl font-medium text-ink tracking-tight">
+            {job.title}
+          </h1>
+          <p className="text-sm text-ink-soft mt-1.5 flex flex-wrap items-center gap-2">
+            <span>{job.location}</span>
+            {job.additional_locations && job.additional_locations.length > 0 && (
+              <span className="text-sage-deep">
+                (+{job.additional_locations.join(", ")})
+              </span>
+            )}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => toggleSave(job)}
+          aria-label={saved ? "Remove from saved jobs" : "Save job for later"}
+          title={saved ? "Saved" : "Save for later"}
+          className={cn(
+            "flex size-10 items-center justify-center rounded-lg border transition-colors shrink-0",
+            saved
+              ? "border-ochre bg-ochre-tint text-ochre"
+              : "border-hairline bg-paper text-sage-deep hover:border-moss/40 hover:text-ink"
           )}
-        </p>
+        >
+          <Bookmark size={18} className={saved ? "fill-current" : undefined} aria-hidden="true" />
+        </button>
       </div>
 
       {/* Meta Badges */}

@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Field, InlineNotice, Input, Panel } from "@/components/ui";
+import { UploadCloud } from "lucide-react";
 
 interface ResumeUploadZoneProps {
   uploading: boolean;
@@ -15,21 +17,50 @@ export function ResumeUploadZone({
   validationError,
   actionError,
 }: ResumeUploadZoneProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
   return (
     <Panel title="Upload a resume">
       <div
-        className="space-y-3 rounded-md border border-dashed border-hairline-strong p-3"
+        className={`space-y-3 rounded-lg border-2 border-dashed p-4 text-center transition-all ${
+          isDragging
+            ? "border-moss bg-moss-tint/30 scale-[1.01]"
+            : "border-hairline-strong bg-paper/50 hover:border-moss/50"
+        }`}
         aria-busy={uploading}
-        onDragOver={(event) => event.preventDefault()}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+        }}
         onDrop={(event) => {
           event.preventDefault();
+          setIsDragging(false);
           const file = event.dataTransfer.files.item(0);
           if (file && !uploading) onFileSelected(file);
         }}
       >
+        <div className="flex flex-col items-center justify-center space-y-2">
+          <span className={`flex size-10 items-center justify-center rounded-full transition-colors ${
+            isDragging ? "bg-moss text-on-moss" : "bg-moss-tint text-moss"
+          }`}>
+            <UploadCloud size={20} aria-hidden="true" />
+          </span>
+          <p className="text-xs font-medium text-ink">
+            {isDragging ? "Drop your resume file here" : "Choose or drag & drop your resume"}
+          </p>
+        </div>
+
         <Field
           label="Resume file"
-          hint="Choose or drop a text-based PDF or DOCX up to 5 MB."
+          hint="Supports text-based PDF or DOCX up to 5 MB."
           error={validationError}
         >
           {({ id, ariaDescribedBy }) => (
@@ -45,11 +76,11 @@ export function ResumeUploadZone({
                 event.currentTarget.value = "";
                 if (file) onFileSelected(file);
               }}
-              className="file:mr-2 file:rounded-sm file:bg-cream file:px-2 file:py-1 file:text-on-cream"
+              className="file:mr-2 file:rounded-sm file:bg-cream file:px-2 file:py-1 file:text-on-cream cursor-pointer text-xs"
             />
           )}
         </Field>
-        {uploading && <p role="status" className="text-xs text-sage-deep">Uploading resume…</p>}
+        {uploading && <p role="status" className="text-xs text-moss font-medium animate-pulse">Uploading and extracting facts…</p>}
         {actionError && <InlineNotice role="alert" variant="problem">{actionError}</InlineNotice>}
       </div>
     </Panel>

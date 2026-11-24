@@ -246,6 +246,64 @@ def test_pdf_with_no_text_explains_which_files_are_supported(client):
     assert "No readable text" in response.json()["detail"]
 
 
+def test_suggest_facts_segregates_categories_properly():
+    from app.resume_parser import suggest_facts
+
+    sample_resume = """
+    Jane Doe
+    jane@example.com | +91 9876543210
+
+    Summary
+    Software engineer with interest in web applications.
+
+    Education
+    ABC University, 2020-2024
+    Bachelor of Technology in Computer Science
+
+    MAJOR projects
+    Campus Portal System | MERN Stack
+    Developed a student portal with complaint tracking and notifications.
+
+    MINOR projects
+    Smart Shopping Cart | Java, MySQL
+    Developed an e-commerce desktop application with auth and order processing.
+
+    Skills and Interests
+    Programming Languages\t: C++, Java, Python, SQL
+    Technical Knowledge
+    Web Development\t: HTML, CSS, JavaScript, React, Node.js
+    Database\t: MongoDB, MySQL
+    Non-Technical\t: Leadership, Teamwork, Problem Solving
+
+    Course work
+    Data Structures, Operating Systems, Database Management
+
+    Certifications & Licenses
+    AWS Certified Cloud Practitioner
+    """
+
+    facts = suggest_facts(sample_resume).model_dump()
+    assert "Python" in facts["skills"]
+    assert "C++" in facts["skills"]
+    assert "React" in facts["skills"]
+    assert "MongoDB" in facts["skills"]
+    assert "Leadership" in facts["skills"]
+    assert "Bachelor of Technology in Computer Science" in facts["education"][1]
+    assert any("Data Structures" in item for item in facts["education"])
+    assert any("Campus Portal System" in item for item in facts["projects"])
+    assert any("Smart Shopping Cart" in item for item in facts["projects"])
+    assert "AWS Certified Cloud Practitioner" in facts["certifications"]
+    # Ensure projects and skills were not dumped into education
+    for item in facts["education"]:
+        assert "MAJOR projects" not in item
+        assert "Campus Portal System" not in item
+        assert "Programming Languages" not in item
+    # Ensure education is not in projects or skills
+    assert not any("Bachelor of Technology" in item for item in facts["projects"])
+    assert not any("Bachelor of Technology" in item for item in facts["skills"])
+
+
+
 def test_job_matches_use_confirmed_evidence_and_recommend_a_resume_for_each_role(client):
     backend = client.post("/api/v1/resumes", files={"file": ("backend.pdf", sample_pdf())}).json()
     analytics = client.post(

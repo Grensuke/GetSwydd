@@ -45,6 +45,93 @@ HEADINGS = {
     "volunteering": None,
     "references": None,
 }
+
+HEADING_PATTERNS = [
+    (
+        "mixed_certifications",
+        re.compile(
+            r"(?:(?:achievements?|honors?|awards?)\s*(?:&|and)\s*certifications?|certifications?\s*(?:&|and)\s*(?:achievements?|honors?|awards?))",
+            re.I,
+        ),
+    ),
+    (
+        "certifications",
+        re.compile(
+            r"(?:(?:licenses?|professional|technical|online)?\s*(?:and|&)?\s*(?:certifications?|certificates?|credentials?|accreditations?)(?:\s*(?:and|&)\s*(?:licenses?|courses?|training))?|licenses?\s*(?:and|&)\s*certifications?|credentials|accreditations)",
+            re.I,
+        ),
+    ),
+    (
+        "projects",
+        re.compile(
+            r"(?:(?:major|minor|personal|academic|technical|key|selected|featured|recent|course|capstone|relevant|hands[- ]on|software|web|mini)?\s*projects?(?:\s+(?:experience|work|highlights|portfolio))?|projects?\s*(?:&|and|/)\s*(?:portfolio|case studies|assignments))",
+            re.I,
+        ),
+    ),
+    (
+        "experience",
+        re.compile(
+            r"(?:(?:work|professional|employment|relevant|practical|industry|career)?\s*(?:experience|history|background)|internships?(?:\s+(?:experience|training))?|apprenticeships?|experience\s*(?:&|and)\s*internships?|internships?\s*(?:&|and)\s*experience)",
+            re.I,
+        ),
+    ),
+    (
+        "education",
+        re.compile(
+            r"(?:(?:academic|educational)?\s*(?:background|qualifications?|profile|history|record)|education(?:\s*(?:and|&)\s*(?:qualifications?|training))?|academics?|degrees?|(?:relevant\s+)?course\s*works?)",
+            re.I,
+        ),
+    ),
+    (
+        "skills",
+        re.compile(
+            r"(?:(?:technical|core|key|hard|soft|professional|it|computer|software|programming)?\s*skills?(?:\s*(?:and|&|/)\s*(?:interests?|abilities|competencies|expertise|tools|technologies))?|technologies|technical\s+(?:competencies|proficiencies|expertise|knowledge|tools|stack)|tech\s+stack|core\s+competencies|competencies|tools\s*(?:&|and)\s*technologies|programming\s+languages|languages\s*(?:&|and)\s*(?:frameworks|technologies)|areas\s+of\s+expertise|domain\s+knowledge)",
+            re.I,
+        ),
+    ),
+    (
+        "ignore",
+        re.compile(
+            r"(?:(?:professional|executive|career|profile)?\s*summary|objective|(?:career|professional)\s*objective|about\s+me|personal\s+statement|profile|achievements?|key\s+achievements?|awards?(?:\s*(?:and|&)\s*achievements?)?|honors?(?:\s*(?:and|&)\s*awards?)?|accomplishments?|competitive\s+programming|coding\s+(?:profiles?|platforms?)|spoken\s+languages|languages\s+known|interests?|hobbies(?:\s*(?:and|&)\s*interests?)?|areas\s+of\s+interest|volunteering|volunteer\s+experience|extracurricular\s+activities|extracurriculars|co-curricular\s+activities|leadership|positions\s+of\s+responsibility|publications?|research\s+papers?|references?|personal\s+details|declaration)",
+            re.I,
+        ),
+    ),
+]
+
+
+def clean_heading_candidate(text: str) -> str:
+    cleaned = re.sub(r"^[\s#*\-_•●·▪\d.)(\][]+", "", text)
+    cleaned = re.sub(r"[\s#*\-_:)(\][|]+$", "", cleaned)
+    return " ".join(cleaned.casefold().split())
+
+
+def match_heading_category(cand: str) -> str | None:
+    if not cand or len(cand) > 60 or len(cand.split()) > 8:
+        return None
+    if cand in HEADINGS:
+        return HEADINGS[cand]
+    for cat, pattern in HEADING_PATTERNS:
+        if pattern.fullmatch(cand):
+            return cat
+    return None
+
+
+def detect_heading(line: str, current_cat: str | None = None) -> tuple[str | None, str] | None:
+    if ":" in line:
+        candidate, _, remainder = line.partition(":")
+        norm = clean_heading_candidate(candidate)
+        matched = match_heading_category(norm)
+        if matched is not None:
+            if current_cat == "skills" and matched == "skills" and remainder.strip():
+                return None
+            target_category = None if matched == "ignore" else matched
+            return (target_category, remainder.strip())
+    norm = clean_heading_candidate(line)
+    matched = match_heading_category(norm)
+    if matched is not None:
+        target_category = None if matched == "ignore" else matched
+        return (target_category, "")
+    return None
 CONTACT_URL = re.compile(r"(?:https?://)?(?:[\w.-]+\.)?linkedin\.com/in/[^\s|<>]+|(?:https?://)?(?:www\.)?github\.com/[^\s|<>]+", re.I)
 EMAIL = re.compile(r"[\w.+%-]+@[\w.-]+\.[a-z]{2,}", re.I)
 PHONE = re.compile(r"(?<![\w+])(?:\+\d{1,3}[ .-]?)?\(?\d{2,5}\)?(?:[ .-]?\d{2,5}){1,4}(?!\w)")
@@ -113,7 +200,7 @@ def parse_resume(content: bytes, extension: str) -> tuple[str, ResumeFacts, Resu
 def _suggest_contact(text: str, targets: list[str]) -> ResumeContact:
     header = []
     for line in text.splitlines()[:14]:
-        if line.split(":", 1)[0].casefold().strip() in HEADINGS:
+        if detect_heading(line) is not None:
             break
         header.append(line)
     header_text = "\n".join(header)
@@ -164,12 +251,18 @@ def suggest_facts(text: str) -> ResumeFacts:
         line = lines[index]
         index += 1
         line = line.strip()
-        heading, _, remainder = line.partition(":")
-        normalized = " ".join(heading.casefold().split())
-        if normalized in HEADINGS:
-            category = HEADINGS[normalized]
+        if not line:
+            continue
+
+        heading_res = detect_heading(line, current_cat=category)
+        if heading_res is not None:
+            new_cat, remainder = heading_res
+            category = new_cat
             line = remainder.strip()
-        if not category or not line:
+            if not category or not line:
+                continue
+
+        if not category:
             continue
 
         is_bullet = bool(BULLET.match(line))
@@ -178,7 +271,7 @@ def suggest_facts(text: str) -> ResumeFacts:
             while index < len(lines):
                 continuation = lines[index].strip()
                 if (not continuation or BULLET.match(continuation) or "|" in continuation
-                        or continuation.split(":", 1)[0].casefold().strip() in HEADINGS
+                        or detect_heading(continuation, current_cat=category) is not None
                         or line.endswith((".", "!", "?")) or len(line) + len(continuation) + 1 > 350):
                     break
                 line += " " + continuation
@@ -190,7 +283,7 @@ def suggest_facts(text: str) -> ResumeFacts:
             target = "certifications"
         if category == "skills":
             prefix, separator, content = line.partition(":")
-            if separator and re.fullmatch(r"[\w /&+-]{1,40}", prefix):
+            if separator and re.fullmatch(r"[\w\s/&+-]{1,50}", prefix.strip()):
                 line = content
         items = SKILL_SPLIT.split(line) if category == "skills" else [line]
         for item in items:

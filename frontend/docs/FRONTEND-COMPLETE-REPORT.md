@@ -6,19 +6,23 @@ The Next.js App Router frontend lives in `frontend/`. `src/app/` defines pages, 
 
 | Route | Main workflow |
 | --- | --- |
-| `/` | Browse India and explicitly worldwide remote job listings, filter by structured fields, or use **Search with AI**. **All locations** broadens the catalog. |
-| `/jobs/[jobId]` | Review the posting, recognized requirements, confirmed evidence, and suggested resume. Use **Prepare application** or **Draft demo application** for eligible listings. |
-| `/resumes` | Upload or remove a PDF or DOCX, review extracted facts and contact links, and search from a selected confirmed resume. |
+| `/` | Browse India and explicitly worldwide remote job listings, filter by structured fields, use **Search with AI**, or filter by bookmarked roles via **Saved (count)**. **All locations** broadens the catalog. |
+| `/jobs/[jobId]` | Review the posting, recognized requirements, confirmed evidence, and suggested resume. Use **+ Add skill** to immediately append missing required skills to the primary resume, toggle bookmarks, or use **Prepare application** / **Draft demo application**. |
+| `/resumes` | Upload or remove a PDF or DOCX, edit skills with the **interactive skill tag editor** (add/remove/raw toggle), inspect **structured project card previews** with tech stack pills, review extracted facts and contact links, and search from a selected confirmed resume. |
 | `/profile` | Save candidate name and optional availability. A personalized draft requires a name. Work authorization is handled in application-specific questions. |
-| `/applications/drafts/[draftId]` | Review the selected resume, confirm answers, save edits, and complete the workflow appropriate to the draft. |
-| `/applications` | Open Ledger or Board view and track test receipts, assisted progress, and Greenhouse outcomes. |
+| `/applications/drafts/[draftId]` | Review the selected resume, confirm answers, save edits, and complete the workflow appropriate to the draft (assisted, Greenhouse, demo, or Gmail review modal). |
+| `/applications` | Open Ledger or Kanban Board with **drag-and-drop** stage management and inspect real-time **Application Analytics** (Total In Play, channel breakdown, pipeline, and interview conversion rate). |
 | `/alerts` | Review matches detected by source refresh and mark notifications as read. |
 
-### Discovery and resume review
+### Discovery, resume review, and skill synchronization
 
 **Search with AI** sends a plain-language request to the discovery agent. The provider extracts a search plan, then the backend searches configured employer feeds and returns actual listings, the filters it applied, and profile evidence. A result links to job analysis and the same preparation flow as a catalog result. **Find jobs with this resume** passes the selected resume ID and requires at least one matched confirmed skill. Skill coverage is separate from eligibility checks such as work authorization.
 
-In **Resumes**, check extracted text, category suggestions, and the suggested email, phone, LinkedIn, and GitHub values before confirming them. Supported embedded links can provide values missing from visible text. The confirmed profile keeps source attribution and shows category details on demand. Removing a resume updates the profile but existing draft snapshots retain the selected filename and reviewed answers.
+Candidates can bookmark roles on any job card or in the detailed job analysis header via the **Bookmark / Saved Jobs** system, backed by a reactive `useSyncExternalStore` hook that instantly synchronizes saved states across the toolbar, cards, and analysis views.
+
+In the job analysis view (`/jobs/[jobId]`), missing required skills feature a **+ Add skill** action. Clicking this directly appends the skill to the candidate's primary resume, confirms the updated facts via the backend API, and recalculates the coverage match without reloading the page.
+
+In **Resumes**, check extracted text, category suggestions, and contact links. Skills can be manipulated as interactive tag pills (type to add, remove with `×`, press `Enter` or `,`) with a toggle for raw text editing. Projects are rendered as formatted cards parsing project titles, tech stack badges, and bullet points. Supported embedded links provide values missing from visible text. The confirmed profile keeps source attribution and shows category details on demand. Removing a resume updates the profile but existing draft snapshots retain the selected filename and reviewed answers.
 
 ### Review and submission
 
@@ -27,11 +31,20 @@ In **Resumes**, check extracted text, category suggestions, and the suggested em
 | Assisted employer site | Save any answers and use the employer link and prepared details. **Mark as submitted** records the user's report after the external application is complete. |
 | Authorized Greenhouse | For a supported form with an authorized board key, save required answers and select the approval checkbox. **Approve and apply** sends that version and the original reviewed resume. If delivery remains unconfirmed, check before trying another submission. |
 | Local sample draft | Approve the saved sample draft to create a local test inbox receipt. From a sample-resume draft you can also choose **Fill mock employer form**, review the separate Chromium window, and approve its test submission in GetSwydd. **Close browser** cancels the preview. |
-| Gmail | The backend can prepare and send email for supported listings. The current frontend does not expose Gmail connection or submission. Its tracker has no Gmail-specific status mapping, so verify email outcomes using the API response. |
+| Gmail | When an employer explicitly requests application by email, candidates review the recipient, subject line, drafted message text, and attached resume in the **Gmail Application Review Modal**. Connect Gmail via OAuth, verify the message, and dispatch with explicit approval. |
 
 ### Tracker and layouts
 
-Ledger and Board read the same two backend lists, `GET /api/v1/applications` and `GET /api/v1/applications/assisted`. The UI labels demo receipts as **Test submission**, reports from candidates as **Submitted (reported by you)**, accepted Greenhouse submissions as **Employer confirmed**, and unresolved Greenhouse sends as **Confirmation pending**. Personal stages and notes live in browser storage.
+Ledger and Board read the backend application feeds and track:
+- **Test submission**: Demo inbox receipts.
+- **Submitted (reported by you)**: Submissions completed on external employer sites.
+- **Employer confirmed**: Accepted Greenhouse submissions.
+- **Sent via Gmail**: Verified email submissions delivered via Gmail API.
+- **Confirmation pending**: Unresolved external delivery status.
+
+The **Kanban Board** provides HTML5 drag-and-drop across seven stages: `Saved`, `Preparing`, `Submitted`, `Assessment`, `Interview`, `Offer`, and `Rejected`. Application cards feature visual drag handles, column drop indicators, and screen reader announcements, with keyboard accessibility preserved via the `MoveStageMenu`.
+
+Above the tracker, the **Application Analytics & Search Funnel Strip** displays real-time metrics: Total In Play, Submissions by channel (Greenhouse, Gmail, Direct), Active Pipeline evaluations, Offers, and a 6-stage recruitment funnel with interview conversion rates.
 
 The theme switch supports Auto, Light, and Dark. Shared color tokens are in `src/app/globals.css`. Check the Ledger header and rows at desktop width, the application cards and filters on narrow screens, long job titles, and the contrast of the Discover hero and action buttons.
 
